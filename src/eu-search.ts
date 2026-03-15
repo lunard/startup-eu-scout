@@ -136,8 +136,10 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     const isOpen        = itemStatuses.some(s => s === '31094501' || s === '1' || s.toLowerCase().includes('open'));
     const isForthcoming = itemStatuses.some(s => s === '31094502' || s === '2' || s.toLowerCase().includes('forthcoming'));
 
-    // Deadline-date fallback: if deadline is in the past → treat as closed
-    const deadlineRaw = (meta.deadline ?? meta.closingDate ?? meta.es_SortDate ?? [])[0];
+    // Deadline-date fallback: only trust actual deadline/closingDate metadata fields.
+    // es_SortDate is an ES publication/index date — NOT the submission deadline — so
+    // we never use it here (it would incorrectly mark every grant as past-deadline).
+    const deadlineRaw = (meta.deadline ?? meta.closingDate ?? [])[0];
     const deadlineDate = deadlineRaw ? new Date(deadlineRaw) : null;
     const now = new Date();
     const isDeadlinePast = deadlineDate && !isNaN(deadlineDate.getTime()) && deadlineDate < now;
