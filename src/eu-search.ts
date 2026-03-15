@@ -3,7 +3,7 @@ import type { SearchResult, SearchResponse } from './types';
 
 const EU_SEARCH_BASE  = 'https://api.tech.ec.europa.eu/search-api/prod/rest/search';
 const EU_TENDERS_BASE = 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search';
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 60;
 
 const PROGRAMME_BOOST: Record<string, string> = {
   'HORIZON': 'Horizon Europe research innovation',
@@ -89,12 +89,12 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     }).catch(() => null)
   );
 
-  // ── Secondary search: programme-browse (10 pages) — only when programme selected ──
+  // ── Secondary search: programme-browse (20 pages) — only when programme selected ──
   // This catches grants that don't rank highly for the startup's keywords
   // but belong to the selected programme (e.g. IHI Joint Undertakings, niche calls)
   const browseText = programme !== 'all' ? (PROGRAMME_BROWSE[programme.toUpperCase()] ?? programme) : null;
   const secondaryFetches = browseText
-    ? Array.from({ length: 10 }, (_, i) =>
+    ? Array.from({ length: 20 }, (_, i) =>
         axios.post<ApiResponse>(EU_SEARCH_BASE, {}, {
           params: { apiKey: 'SEDIA', text: browseText, pageSize: FETCH_PER_PAGE, pageNumber: i + 1 },
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'EU-Match/0.2' },

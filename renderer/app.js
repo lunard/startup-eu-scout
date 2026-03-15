@@ -4,8 +4,8 @@ const state = {
     currentProfile: null,
     schedaEU: '',
     keywords: [],
-    bandiResults: [],
-    bandoAnalyses: {},
+    grantResults: [],
+    grantAnalyses: {},
     logErrorCount: 0
 };
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -328,103 +328,119 @@ $('btnDownloadMd').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 // ─── Search Bandi ─────────────────────────────────────────────────────────────
-$('btnCercaBandi').addEventListener('click', async () => {
-    switchToTab('bandi');
-    await searchBandi();
+$('btnSearchGrants').addEventListener('click', async () => {
+    switchToTab('grants');
+    await searchGrants();
 });
-$('btnSearch').addEventListener('click', () => { searchBandi(); });
+$('btnSearch').addEventListener('click', () => { searchGrants(); });
 // Re-search automatically when any filter changes
-['programmePeriod', 'bandiStatus', 'bandiLanguage', 'bandiProgramme'].forEach(id => {
+['programmePeriod', 'grantStatus', 'grantLanguage', 'grantProgramme'].forEach(id => {
     $(id).addEventListener('change', () => {
         if (state.keywords && state.keywords.length > 0)
-            searchBandi();
+            searchGrants();
     });
 });
 function setLoadingMsg(msg) {
-    const el = document.getElementById('bandiLoadingMsg');
+    const el = document.getElementById('grantsLoadingMsg');
     if (el)
         el.textContent = msg;
 }
-async function searchBandi() {
+async function searchGrants() {
     if (!state.keywords || state.keywords.length === 0) {
-        show('bandiEmpty');
+        show('grantsEmpty');
         return;
     }
-    hide('bandiEmpty');
-    show('bandiLoading');
-    $('bandiResults').innerHTML = '';
-    $('bandiCount').classList.add('hidden');
+    hide('grantsEmpty');
+    show('grantsLoading');
+    $('grantResults').innerHTML = '';
+    $('grantCount').classList.add('hidden');
     const period = $('programmePeriod').value;
-    const statusKey = $('bandiStatus').value;
-    const language = $('bandiLanguage').value;
-    const programme = $('bandiProgramme').value;
+    const statusKey = $('grantStatus').value;
+    const language = $('grantLanguage').value;
+    const programme = $('grantProgramme').value;
     const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
+    const isClosed = statusKey === 'closed';
     try {
         // ── Phase 1: Search ────────────────────────────────────────────────
-        setLoadingMsg('🔍 Step 1/3 — Searching EU grants...');
+        setLoadingMsg('🔍 Step 1 — Searching EU grants...');
         appLog('api', `Searching grants — status: ${statusKey}, programme: ${programme}, language: ${language}`);
         const res = await window.euMatch.searchFunding(state.keywords, { programmePeriod: period, statusKey, language, programme });
         if (!res.ok || !res.results || res.results.length === 0) {
-            hide('bandiLoading');
-            $('bandiResults').innerHTML = `
+            hide('grantsLoading');
+            $('grantResults').innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📭</div>
           ${res.error ? `API Error: ${escHtml(res.error)}` : 'No grants found for the provided keywords.'}
         </div>`;
             return;
         }
-        appLog('success', `Found ${res.results.length} grants.`);
+        appLog('success', `Found ${res.results.length} grants in analysis pool (from ${res.total?.toLocaleString()} EU total).`);
         // ── Phase 2: Crawl grant homepages ────────────────────────────────
-        setLoadingMsg(`📄 Step 2/3 — Crawling grant homepages (${res.results.length} grants)...`);
-        appLog('api', `Crawling ${res.results.length} grant homepages for full details…`);
+        const stepCount = isClosed ? '2' : '3';
+        setLoadingMsg(`📄 Step 2/${stepCount} — Crawling ${res.results.length} grant homepages for full details...`);
+        appLog('api', `Crawling ${res.results.length} grant homepages…`);
         const enrichRes = await window.euMatch.enrichGrants(res.results);
         const enriched = enrichRes.ok ? (enrichRes.results ?? res.results) : res.results;
         appLog('success', `Grant details extracted for ${enriched.length} grants.`);
-        // ── Phase 3: Copilot analysis ─────────────────────────────────────
-        if (ragioneSociale) {
-            state.bandoAnalyses = await window.euMatch.loadBandoAnalyses(ragioneSociale);
+        // ── Closed grants: show info + partner list, no Copilot ───────────
+        if (isClosed) {
+            state.grantResults = enriched;
+            hide('grantsLoading');
+            renderGrants(enriched, res.total ?? 0, true);
+            $('grantCount').textContent = enriched.length.toString();
+            $('grantCount').classList.remove('hidden');
+            return;
         }
-        const toAnalyze = ragioneSociale ? enriched.filter(b => !state.bandoAnalyses?.[b.id]) : [];
-        const fromCache = enriched.length - toAnalyze.length;
+        // ── Phase 3: Copilot — pre-rank by keyword score, analyse top 15, show top 5 ──
+        const COPILOT_POOL = 15;
+        const TOP_N = 5;
+        // Pre-rank by keyword relevance, take top 15 for Copilot analysis
+        const sortedByKeyword = [...enriched].sort((a, b) => b.matchingScore - a.matchingScore);
+        const analysisPool = sortedByKeyword.slice(0, COPILOT_POOL);
+        if (ragioneSociale) {
+            state.grantAnalyses = await window.euMatch.loadGrantAnalyses(ragioneSociale);
+        }
+        const toAnalyze = ragioneSociale ? analysisPool.filter(b => !state.grantAnalyses?.[b.id]) : [];
+        const fromCache = analysisPool.length - toAnalyze.length;
         let done = fromCache;
-        setLoadingMsg(`🤖 Step 3/3 — Copilot analysis: ${done}/${enriched.length} grants analysed...`);
-        appLog('copilot', `Copilot analysis: ${toAnalyze.length} to analyse, ${fromCache} from cache`);
+        setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
+        appLog('copilot', `Ranking top ${COPILOT_POOL} from pool of ${enriched.length} by keyword score, selecting best ${TOP_N} — ${toAnalyze.length} to analyse, ${fromCache} from cache`);
         const BATCH = 3;
         for (let i = 0; i < toAnalyze.length; i += BATCH) {
             const batch = toAnalyze.slice(i, i + BATCH);
             await Promise.allSettled(batch.map(async (b) => {
-                const r = await window.euMatch.analyzeBando(b, ragioneSociale);
+                const r = await window.euMatch.analyzeGrant(b, ragioneSociale);
                 if (r.ok && r.analysis) {
-                    state.bandoAnalyses[b.id] = { analysis: r.analysis, savedAt: new Date().toISOString(), fitScore: r.fitScore ?? 50 };
+                    state.grantAnalyses[b.id] = { analysis: r.analysis, savedAt: new Date().toISOString(), fitScore: r.fitScore ?? 0 };
                 }
                 done++;
-                setLoadingMsg(`🤖 Step 3/3 — Copilot analysis: ${done}/${enriched.length} grants analysed...`);
+                setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
             }));
         }
-        if (toAnalyze.length > 0)
-            appLog('success', `Grant analysis complete: ${enriched.length} grants ranked.`);
-        // ── Final: Sort by partner score and render ───────────────────────
-        enriched.sort((a, b) => {
-            const sa = state.bandoAnalyses?.[a.id]?.fitScore ?? 0;
-            const sb = state.bandoAnalyses?.[b.id]?.fitScore ?? 0;
+        appLog('success', `Ranking complete — selecting top ${TOP_N} best-fit grants from ${analysisPool.length} analysed.`);
+        // Sort analysis pool by partner score, take top 5
+        analysisPool.sort((a, b) => {
+            const sa = state.grantAnalyses?.[a.id]?.fitScore ?? 0;
+            const sb = state.grantAnalyses?.[b.id]?.fitScore ?? 0;
             return sb - sa;
         });
-        state.bandiResults = enriched;
-        hide('bandiLoading');
-        renderBandi(enriched, res.total ?? 0, res.isClosed ?? false);
-        $('bandiCount').textContent = enriched.length.toString();
-        $('bandiCount').classList.remove('hidden');
+        const top5 = analysisPool.slice(0, TOP_N);
+        state.grantResults = top5;
+        hide('grantsLoading');
+        renderGrants(top5, res.total ?? 0, false);
+        $('grantCount').textContent = TOP_N.toString();
+        $('grantCount').classList.remove('hidden');
     }
     catch (err) {
-        hide('bandiLoading');
-        $('bandiResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
+        hide('grantsLoading');
+        $('grantResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
         appLog('error', `Search error: ${err.message}`);
     }
 }
-function safeBandoId(id) {
+function safeGrantId(id) {
     return id.replace(/[^a-zA-Z0-9_-]/g, '-');
 }
-function renderBandi(results, total, isClosed = false) {
+function renderGrants(results, total, isClosed = false) {
     const closedBanner = isClosed
         ? `<div class="alert alert-warning" style="margin-bottom:12px">
          📁 You are viewing <strong>expired</strong> grants.
@@ -437,7 +453,7 @@ function renderBandi(results, total, isClosed = false) {
       <span class="results-count">Found <strong>${total}</strong> grants — showing ${results.length} ranked by partner fit</span>
     </div>`;
     const cards = results.map((b, rank) => {
-        const cached = state.bandoAnalyses?.[b.id];
+        const cached = state.grantAnalyses?.[b.id];
         const fitScore = cached?.fitScore ?? 0;
         const fitClass = fitScore >= 60 ? 'score-high' : fitScore >= 30 ? 'score-mid' : 'score-low';
         const isExpired = isClosed;
@@ -445,7 +461,7 @@ function renderBandi(results, total, isClosed = false) {
         const statusClass = isExpired ? 'status-unknown'
             : b.status.toLowerCase().includes('open') ? 'status-open'
                 : b.status.toLowerCase().includes('forth') ? 'status-forthcoming' : 'status-unknown';
-        const safeId = safeBandoId(b.id);
+        const safeId = safeGrantId(b.id);
         const meta = [
             b.programme ? `🏛️ ${escHtml(b.programme)}` : '',
             b.typeOfAction ? `⚗️ ${escHtml(b.typeOfAction)}` : '',
@@ -464,24 +480,24 @@ function renderBandi(results, total, isClosed = false) {
          </div>`
             : `<div class="analysis-area analysis-na"><em>No startup profile loaded — analysis not available.</em></div>`;
         return `
-      <div class="bando-card${isExpired ? ' bando-expired' : ''}" data-bando-id="${escHtml(b.id)}" data-fitscore="${fitScore}">
+      <div class="grant-card${isExpired ? ' grant-expired' : ''}" data-grant-id="${escHtml(b.id)}" data-fitscore="${fitScore}">
         <div style="flex:1;min-width:0">
-          <div class="bando-title">#${rank + 1} ${escHtml(b.title)}</div>
-          <div class="bando-meta">${meta}<span class="status-badge ${statusClass}">${escHtml(statusLabel)}</span></div>
-          <div class="bando-actions">
+          <div class="grant-title">#${rank + 1} ${escHtml(b.title)}</div>
+          <div class="grant-meta">${meta}<span class="status-badge ${statusClass}">${escHtml(statusLabel)}</span></div>
+          <div class="grant-actions">
             <a class="btn btn-secondary btn-sm" data-href="${escHtml(b.portalUrl)}" style="text-decoration:none">🔗 Open in EU Portal</a>
             ${beneficiariesBtn}
           </div>
           ${analysisHtml}
         </div>
-        <div class="bando-score-box">
+        <div class="grant-score-box">
           <div class="score-circle ${fitClass}">${fitScore}%</div>
           <div class="score-label">Partner<br>Score</div>
         </div>
       </div>`;
     }).join('');
-    $('bandiResults').innerHTML = header + cards;
-    $('bandiResults').querySelectorAll('a[data-href]').forEach(a => {
+    $('grantResults').innerHTML = header + cards;
+    $('grantResults').querySelectorAll('a[data-href]').forEach(a => {
         a.addEventListener('click', e => {
             e.preventDefault();
             window.open(a.dataset.href, '_blank');

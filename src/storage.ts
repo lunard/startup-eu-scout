@@ -83,12 +83,12 @@ export function saveSettings(settings: Partial<AppSettings>): void {
   store.set('settings', { ...current, ...settings });
 }
 
-export function saveBandoAnalysis(ragioneSociale: string, bandoId: string, analysis: string, fitScore: number): void {
+export function saveGrantAnalysis(ragioneSociale: string, grantId: string, analysis: string, fitScore: number): void {
   const key = profileKey(ragioneSociale);
-  store.set(`analyses.${key}.${bandoId}`, { analysis, savedAt: new Date().toISOString(), fitScore });
+  store.set(`analyses.${key}.${grantId}`, { analysis, savedAt: new Date().toISOString(), fitScore });
 }
 
-export function loadBandoAnalyses(ragioneSociale: string): Record<string, { analysis: string; savedAt: string; fitScore?: number }> {
+export function loadGrantAnalyses(ragioneSociale: string): Record<string, { analysis: string; savedAt: string; fitScore?: number }> {
   const key = profileKey(ragioneSociale);
   return (store.get(`analyses.${key}`, {}) as Record<string, { analysis: string; savedAt: string; fitScore?: number }>);
 }

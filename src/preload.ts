@@ -29,11 +29,11 @@ contextBridge.exposeInMainWorld('euMatch', {
   enrichGrants: (results: Record<string, unknown>[]) =>
     ipcRenderer.invoke('eu:enrichGrants', { results }),
 
-  analyzeBando: (bando: Record<string, unknown>, ragioneSociale: string) =>
-    ipcRenderer.invoke('copilot:analyzeBando', { bando, ragioneSociale }),
+  analyzeGrant: (grant: Record<string, unknown>, ragioneSociale: string) =>
+    ipcRenderer.invoke('copilot:analyzeGrant', { grant, ragioneSociale }),
 
-  loadBandoAnalyses: (ragioneSociale: string) =>
-    ipcRenderer.invoke('bando:loadAnalyses', { ragioneSociale }),
+  loadGrantAnalyses: (ragioneSociale: string) =>
+    ipcRenderer.invoke('grant:loadAnalyses', { ragioneSociale }),
 
   saveCredentials: (username: string, password: string) =>
     ipcRenderer.invoke('cred:save', { username, password }),

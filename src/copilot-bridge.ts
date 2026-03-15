@@ -167,7 +167,7 @@ ${schedaEU}
 OUTPUT:`;
 }
 
-function buildBandoAnalysisPrompt(profile: ProfileData | null, schedaEU: string, bando: SearchResult): string {
+function buildGrantAnalysisPrompt(profile: ProfileData | null, schedaEU: string, bando: SearchResult): string {
   const ragioneSociale = profile?.ragioneSociale ?? 'N/D';
   const description = bando.fullDescription || bando.description || '';
   return `You are a European funding expert. Analyse the compatibility between the startup and the EU grant below.
@@ -201,14 +201,14 @@ PUNTEGGIO_PARTNER: XX
 (where XX is an integer 0–100 representing how well this startup fits as a partner for this grant)`;
 }
 
-export async function analyzeBando(
+export async function analyzeGrant(
   profile: ProfileData | null,
   schedaEU: string,
-  bando: SearchResult,
+  grant: SearchResult,
   settings: AppSettings
 ): Promise<{ analysis: string; fitScore: number }> {
   const bin = resolveCopilotBin(settings?.copilotPath);
-  const raw = await spawnPrompt(bin, buildBandoAnalysisPrompt(profile, schedaEU, bando), REQUIRED_MODEL, null);
+  const raw = await spawnPrompt(bin, buildGrantAnalysisPrompt(profile, schedaEU, grant), REQUIRED_MODEL, null);
   const match = raw.match(/PUNTEGGIO_PARTNER:\s*(\d+)/);
   const fitScore = match ? Math.min(100, parseInt(match[1])) : 50;
   const analysis = raw.replace(/\nPUNTEGGIO_PARTNER:\s*\d+\s*$/, '').trimEnd();

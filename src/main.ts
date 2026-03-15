@@ -189,25 +189,26 @@ ipcMain.handle('eu:testConnectivity', async () => {
   return result;
 });
 
-ipcMain.handle('copilot:analyzeBando', async (_event, { bando, ragioneSociale }: { bando: SearchResult; ragioneSociale: string }) => {
-  sendLog('copilot', `Analisi bando: "${bando.title.substring(0, 60)}…"`);
+ipcMain.handle('copilot:analyzeGrant', async (_event, { grant, ragioneSociale }: { grant: SearchResult; ragioneSociale: string }) => {
+  
+  sendLog('copilot', `Analysing grant: "${grant.title.substring(0, 60)}…"`);
   const settings = storage.getSettings();
   const profile = storage.loadProfile(ragioneSociale);
   const schedaEU = profile?.schedaEU ?? '';
   try {
-    const { analysis, fitScore } = await copilot.analyzeBando(profile, schedaEU, bando, settings);
-    storage.saveBandoAnalysis(ragioneSociale, bando.id, analysis, fitScore);
-    sendLog('success', `Analisi bando salvata: ${bando.id}`);
+    const { analysis, fitScore } = await copilot.analyzeGrant(profile, schedaEU, grant, settings);
+    storage.saveGrantAnalysis(ragioneSociale, grant.id, analysis, fitScore);
+    sendLog('success', `Grant analysis saved: ${grant.id}`);
     return { ok: true, analysis, fitScore };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    sendLog('error', `Errore analisi bando: ${message}`);
+    sendLog('error', `Grant analysis error: ${message}`);
     return { ok: false, error: message };
   }
 });
 
-ipcMain.handle('bando:loadAnalyses', async (_event, { ragioneSociale }: { ragioneSociale: string }) => {
-  return storage.loadBandoAnalyses(ragioneSociale);
+ipcMain.handle('grant:loadAnalyses', async (_event, { ragioneSociale }: { ragioneSociale: string }) => {
+  return storage.loadGrantAnalyses(ragioneSociale);
 });
 
 ipcMain.handle('cred:save', async (_event, { username, password }: { username: string; password: string }) => {

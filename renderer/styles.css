@@ -235,7 +235,7 @@ body {
   border-radius: 99px;
 }
 
-/* ─── Bandi Results ──────────────────────────────────── */
+/* ─── Grant Results ──────────────────────────────────── */
 .results-header {
   display: flex;
   align-items: center;
@@ -243,7 +243,7 @@ body {
   margin-bottom: 16px;
 }
 .results-count { font-size: 13px; color: var(--text-muted); }
-.bando-card {
+.grant-card {
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
@@ -254,12 +254,12 @@ body {
   gap: 12px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.bando-card:hover { border-color: var(--eu-blue); box-shadow: var(--shadow); }
-.bando-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.bando-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
-.bando-meta span { display: flex; align-items: center; gap: 4px; }
-.bando-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
-.bando-score-box { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 70px; }
+.grant-card:hover { border-color: var(--eu-blue); box-shadow: var(--shadow); }
+.grant-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.grant-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+.grant-meta span { display: flex; align-items: center; gap: 4px; }
+.grant-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.grant-score-box { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 70px; }
 .score-circle {
   width: 56px; height: 56px;
   border-radius: 50%;
@@ -271,7 +271,7 @@ body {
 .score-mid  { background: #fef9c3; color: var(--warning); border: 2px solid #fde047; }
 .score-low  { background: #fee2e2; color: var(--danger); border: 2px solid #fca5a5; }
 .score-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-align: center; }
-.bando-actions { margin-top: 10px; }
+.grant-actions { margin-top: 10px; }
 .status-badge {
   display: inline-block;
   font-size: 11px;
@@ -534,8 +534,8 @@ body {
 
 .log-empty { color: #484f58; text-align: center; padding: 40px; font-style: italic; font-size: 12px; }
 
-/* ─── Bando Analysis Panel ───────────────────────────── */
-.bando-analysis {
+/* ─── Grant Analysis Panel ───────────────────────────── */
+.grant-analysis {
   margin-top: 14px;
   border-top: 1px solid var(--border);
   padding-top: 14px;
@@ -571,7 +571,7 @@ body {
   padding: 1px 6px;
 }
 
-/* ─── Expired bandi ──────────────────────────────────── */
-.bando-expired { opacity: 0.85; border-left: 3px solid var(--text-muted); }
-.bando-expired .bando-title { color: var(--text-muted); }
+/* ─── Expired grants ──────────────────────────────────── */
+.grant-expired { opacity: 0.85; border-left: 3px solid var(--text-muted); }
+.grant-expired .grant-title { color: var(--text-muted); }
 .alert-warning { background: #fff8e1; color: #7d5e00; border: 1px solid #ffe082; }

@@ -66,8 +66,8 @@ declare global {
     generateSchedaEU(profile: ProfileData): Promise<{ ok: boolean; schedaEU?: string; keywords?: string[]; error?: string }>;
     searchFunding(keywords: string[], options?: Record<string, unknown>): Promise<{ ok: boolean; total?: number; results?: SearchResult[]; isClosed?: boolean; error?: string }>;
     enrichGrants(results: SearchResult[]): Promise<{ ok: boolean; results?: SearchResult[]; error?: string }>;
-    analyzeBando(bando: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; fitScore?: number; error?: string }>;
-    loadBandoAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string; fitScore?: number }>>;
+    analyzeGrant(grant: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; fitScore?: number; error?: string }>;
+    loadGrantAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string; fitScore?: number }>>;
     saveCredentials(username: string, password: string): Promise<{ ok: boolean; error?: string }>;
     loadCredentials(): Promise<{ ok: boolean; data?: { username: string } | null }>;
     clearCredentials(): Promise<{ ok: boolean }>;
