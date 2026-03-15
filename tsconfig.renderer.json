@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "outDir": "renderer",
+    "rootDir": "renderer",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM"],
+    "noEmit": false
+  },
+  "include": ["renderer/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -486,3 +486,50 @@ body {
 }
 .md-preview hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
+
+/* ─── App Log Tab ────────────────────────────────────── */
+.log-badge { background: var(--danger) !important; }
+
+.app-log-panel {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 10px 0;
+  height: calc(100vh - 280px);
+  overflow-y: auto;
+  font-family: 'Monaco','Menlo','Consolas',monospace;
+  font-size: 12px;
+}
+
+.log-entry {
+  display: grid;
+  grid-template-columns: 68px 28px 1fr;
+  gap: 0 8px;
+  align-items: baseline;
+  padding: 3px 14px;
+  border-bottom: 1px solid #161b22;
+  line-height: 1.55;
+}
+.log-entry:hover { background: #161b22; }
+
+.log-ts  { color: #484f58; font-size: 11px; white-space: nowrap; }
+.log-icon { text-align: center; }
+.log-msg { color: #e6edf3; white-space: pre-wrap; word-break: break-word; }
+.log-detail {
+  grid-column: 3;
+  color: #7d8590;
+  font-size: 11px;
+  margin-top: 1px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-entry.level-success .log-msg { color: #3fb950; }
+.log-entry.level-error   .log-msg { color: #f85149; }
+.log-entry.level-warn    .log-msg { color: #d29922; }
+.log-entry.level-api     .log-msg { color: #a371f7; }
+.log-entry.level-copilot .log-msg { color: #58a6ff; }
+.log-entry.level-storage .log-msg { color: #7d8590; }
+
+.log-empty { color: #484f58; text-align: center; padding: 40px; font-style: italic; font-size: 12px; }

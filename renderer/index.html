@@ -33,6 +33,10 @@
       <span class="tab-badge hidden" id="bandiCount">0</span>
     </button>
     <button class="tab-btn" data-tab="settings">⚙️ Impostazioni</button>
+    <button class="tab-btn" data-tab="log">
+      📊 Log
+      <span class="tab-badge log-badge hidden" id="logErrorCount">0</span>
+    </button>
   </nav>
 
   <!-- ─── Main Content ─────────────────────────────────── -->
@@ -167,6 +171,19 @@
               <option value="forthcoming">Solo In Arrivo</option>
             </select>
           </div>
+          <div class="form-group">
+            <label>Lingua preferita</label>
+            <select id="bandiLanguage">
+              <option value="en" selected>🇬🇧 English</option>
+              <option value="it">🇮🇹 Italiano</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="de">🇩🇪 Deutsch</option>
+              <option value="es">🇪🇸 Español</option>
+              <option value="pt">🇵🇹 Português</option>
+              <option value="nl">🇳🇱 Nederlands</option>
+              <option value="pl">🇵🇱 Polski</option>
+            </select>
+          </div>
         </div>
         <div class="btn-group">
           <button class="btn btn-primary" id="btnSearch">
@@ -227,9 +244,26 @@
         <div class="btn-group">
           <button class="btn btn-primary" id="btnSaveCreds">🔐 Salva Credenziali</button>
           <button class="btn btn-secondary" id="btnLoadCreds">📂 Carica Salvate</button>
+          <button class="btn btn-secondary" id="btnTestAuth">🔌 Verifica Connessione EU</button>
           <button class="btn btn-danger btn-sm" id="btnClearCreds">🗑️ Elimina</button>
         </div>
         <div class="alert hidden" id="credStatus" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- ══ TAB: LOG ══════════════════════════════════════ -->
+    <section class="tab-panel" id="tab-log">
+      <div class="card" style="padding-bottom:0">
+        <div class="card-title" style="justify-content:space-between">
+          <span>📊 Log Applicazione</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" id="btnCopyLog">📋 Copia</button>
+            <button class="btn btn-secondary btn-sm" id="btnClearLog">🗑️ Pulisci</button>
+          </div>
+        </div>
+        <div id="appLogPanel" class="app-log-panel">
+          <div class="log-empty">Nessun evento registrato ancora.</div>
+        </div>
       </div>
     </section>
 

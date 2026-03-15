@@ -54,6 +54,13 @@ contextBridge.exposeInMainWorld('euMatch', {
   saveSettings: (settings) =>
     ipcRenderer.invoke('settings:save', settings),
 
+  // --- EU Auth / Connectivity ---
+  testEuAuth: () =>
+    ipcRenderer.invoke('eu:testAuth'),
+
+  testEuConnectivity: () =>
+    ipcRenderer.invoke('eu:testConnectivity'),
+
   // --- Profiler progress events ---
   onProfileProgress: (callback) => {
     ipcRenderer.on('profiler:progress', (_, data) => callback(data));
@@ -69,5 +76,13 @@ contextBridge.exposeInMainWorld('euMatch', {
 
   removeCopilotChunkListener: () => {
     ipcRenderer.removeAllListeners('copilot:chunk');
+  },
+
+  // --- App log events (main → renderer) ---
+  onLog: (callback) => {
+    ipcRenderer.on('log:push', (_, entry) => callback(entry));
+  },
+  removeLogListener: () => {
+    ipcRenderer.removeAllListeners('log:push');
   }
 });

@@ -5,7 +5,8 @@ const state = {
   currentProfile: null,
   schedaEU: '',
   keywords: [],
-  bandiResults: []
+  bandiResults: [],
+  logErrorCount: 0
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -19,6 +20,64 @@ function setAlert(id, type, text) {
   el.innerHTML = text;
   show(id);
 }
+
+// ─── App Log ──────────────────────────────────────────────────────────────────
+const LOG_ICONS = {
+  info: 'ℹ️', success: '✅', warn: '⚠️', error: '❌',
+  api: '🌐', copilot: '🤖', storage: '💾'
+};
+
+function appLog(level, message, detail = '') {
+  const panel = $('appLogPanel');
+  const empty = panel.querySelector('.log-empty');
+  if (empty) empty.remove();
+
+  const ts = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const icon = LOG_ICONS[level] || 'ℹ️';
+
+  const entry = document.createElement('div');
+  entry.className = `log-entry level-${level}`;
+  entry.innerHTML = `
+    <span class="log-ts">${ts}</span>
+    <span class="log-icon">${icon}</span>
+    <span class="log-msg">${escHtml(message)}</span>
+    ${detail ? `<span class="log-detail">${escHtml(detail)}</span>` : ''}
+  `;
+  panel.appendChild(entry);
+  panel.scrollTop = panel.scrollHeight;
+
+  // Track errors for badge
+  if (level === 'error') {
+    state.logErrorCount++;
+    const badge = $('logErrorCount');
+    badge.textContent = state.logErrorCount;
+    badge.classList.remove('hidden');
+  }
+}
+
+// Listen for log events pushed from main process
+window.euMatch.onLog((entry) => {
+  appLog(entry.level, entry.message, entry.detail || '');
+});
+
+// Clear log
+$('btnClearLog').addEventListener('click', () => {
+  $('appLogPanel').innerHTML = '<div class="log-empty">Log pulito.</div>';
+  state.logErrorCount = 0;
+  $('logErrorCount').textContent = '0';
+  $('logErrorCount').classList.add('hidden');
+});
+
+// Copy log as plain text
+$('btnCopyLog').addEventListener('click', () => {
+  const lines = [...$('appLogPanel').querySelectorAll('.log-entry')].map(el => {
+    const ts  = el.querySelector('.log-ts')?.textContent || '';
+    const msg = el.querySelector('.log-msg')?.textContent || '';
+    const det = el.querySelector('.log-detail')?.textContent || '';
+    return det ? `${ts} ${msg}\n      ${det}` : `${ts} ${msg}`;
+  });
+  navigator.clipboard.writeText(lines.join('\n'));
+});
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -239,6 +298,8 @@ async function generateScheda(profile) {
   hide('schedaSourcePanel');
   hide('btnDownloadMd');
 
+  appLog('copilot', `Generazione Scheda EU per "${profile.ragioneSociale}"…`);
+
   // Stream chunks into source panel as raw text (live feedback)
   const sourceEl = $('schedaSource');
   const previewEl = $('schedaContent');
@@ -330,6 +391,13 @@ $('btnCercaBandi').addEventListener('click', async () => {
 
 $('btnSearch').addEventListener('click', searchBandi);
 
+// Re-search automatically when any filter changes
+['programmePeriod', 'bandiStatus', 'bandiLanguage'].forEach(id => {
+  $(id).addEventListener('change', () => {
+    if (state.keywords && state.keywords.length > 0) searchBandi();
+  });
+});
+
 async function searchBandi() {
   if (!state.keywords || state.keywords.length === 0) {
     show('bandiEmpty');
@@ -340,18 +408,22 @@ async function searchBandi() {
   show('bandiLoading');
   $('bandiResults').innerHTML = '';
 
-  const period = $('programmePeriod').value;
+  const period    = $('programmePeriod').value;
   const statusVal = $('bandiStatus').value;
+  const language  = $('bandiLanguage').value;
   const statusMap = {
     'open-forthcoming': ['31094501', '31094502'],
     'open': ['31094501'],
     'forthcoming': ['31094502']
   };
 
+  appLog('api', `Ricerca bandi — lingua: ${language}, periodo: ${period}`);
+
   try {
     const res = await window.euMatch.searchFunding(state.keywords, {
       programmePeriod: period,
-      status: statusMap[statusVal] || statusMap['open-forthcoming']
+      status: statusMap[statusVal] || statusMap['open-forthcoming'],
+      language
     });
 
     hide('bandiLoading');
@@ -473,6 +545,37 @@ $('btnClearCreds').addEventListener('click', async () => {
   $('euUsername').value = '';
   $('euPassword').value = '';
   setAlert('credStatus', 'success', '🗑️ Credenziali eliminate.');
+  appLog('storage', 'Credenziali EU Login eliminate.');
+});
+
+$('btnTestAuth').addEventListener('click', async () => {
+  const btn = $('btnTestAuth');
+  btn.disabled = true;
+  btn.textContent = '⏳ Test in corso…';
+  setAlert('credStatus', 'info', '🔌 Test connessione EU in corso…');
+  appLog('api', 'Test connessione EU avviato…');
+
+  try {
+    // 1. Public API connectivity
+    const conn = await window.euMatch.testEuConnectivity();
+    appLog(conn.ok ? 'success' : 'error', `API EU pubblica: ${conn.message}`, `HTTP ${conn.status}`);
+
+    // 2. EU Login credentials (if saved)
+    const auth = await window.euMatch.testEuAuth();
+    if (auth.ok) {
+      setAlert('credStatus', 'success', `✅ API EU raggiungibile. Credenziali EU Login valide.`);
+      appLog('success', 'EU Login: credenziali verificate con successo.');
+    } else {
+      setAlert('credStatus', conn.ok ? 'warning' : 'error',
+        `${conn.ok ? '✅ API EU raggiungibile.' : '❌ API EU non raggiungibile.'} ${auth.error}`);
+      appLog('warn', `EU Login: ${auth.error}`);
+    }
+
+    switchToTab('log');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔌 Verifica Connessione EU';
+  }
 });
 
 // ─── Copilot Model Modal ───────────────────────────────────────────────────────
