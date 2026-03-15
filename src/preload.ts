@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('euMatch', {
   searchFunding: (keywords: string[], options?: Record<string, unknown>) =>
     ipcRenderer.invoke('eu:search', { keywords, options }),
 
+  enrichGrants: (results: Record<string, unknown>[]) =>
+    ipcRenderer.invoke('eu:enrichGrants', { results }),
+
   analyzeBando: (bando: Record<string, unknown>, ragioneSociale: string) =>
     ipcRenderer.invoke('copilot:analyzeBando', { bando, ragioneSociale }),
 

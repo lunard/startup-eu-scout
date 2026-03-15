@@ -168,6 +168,8 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
     ? `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${identifier}`
     : EU_TENDERS_BASE;
 
+  const detailUrl = item.url ?? '';
+
   const beneficiariesUrl = isClosed && identifier
     ? `https://cordis.europa.eu/search/result_en?q=contenttype%3Dproject%20AND%20grantDoi%3A${encodeURIComponent(identifier)}`
     : '';
@@ -181,10 +183,81 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
     programme,
     budget,
     description,
+    detailUrl,
     portalUrl,
     beneficiariesUrl,
     matchingScore: computeMatchingScore(title + ' ' + metaKws.join(' '), queryKeywords)
   };
+}
+
+// ─── Grant detail crawler ────────────────────────────────────────────────────
+
+interface GrantDetailJson {
+  title?:              string;
+  objective?:          string;
+  description?:        string;
+  startDate?:          string;
+  submissionStartDate?: string;
+  openDate?:           string;
+  deadlineDate?:       string;
+  deadline0?:          string;
+  projectDuration?:    string;
+  duration?:           string;
+  typeOfAction?:       string;
+  budgetTopicAction?:  string;
+  totalBudget?:        string;
+  budget?:             string;
+  frameworkProgramme?: string;
+  programmeName?:      string;
+  [key: string]: unknown;
+}
+
+/** Fetches each grant's detail JSON (the data powering its portal homepage). */
+export async function enrichGrantDetails(results: SearchResult[]): Promise<SearchResult[]> {
+  const BATCH = 6;
+  const enriched = [...results];
+
+  for (let i = 0; i < enriched.length; i += BATCH) {
+    const slice = enriched.slice(i, i + BATCH);
+    const details = await Promise.all(slice.map(r => crawlGrantPage(r)));
+    for (let j = 0; j < slice.length; j++) {
+      enriched[i + j] = { ...enriched[i + j], ...details[j] };
+    }
+  }
+  return enriched;
+}
+
+async function crawlGrantPage(result: SearchResult): Promise<Partial<SearchResult>> {
+  const url = result.detailUrl;
+  if (!url) return {};
+  try {
+    const res = await axios.get<GrantDetailJson>(url, {
+      timeout: 12000,
+      headers: { 'Accept': 'application/json', 'User-Agent': 'EU-Match/0.2' }
+    });
+    const d = res.data;
+
+    const str = (...keys: string[]): string => {
+      for (const k of keys) {
+        const v = d[k];
+        if (v && typeof v === 'string' && v.trim()) return v.trim();
+      }
+      return '';
+    };
+
+    const title         = str('title') || result.title;
+    const fullDesc      = str('objective', 'description').substring(0, 3000);
+    const openDate      = str('startDate', 'submissionStartDate', 'openDate') || result.openDate;
+    const deadline      = str('deadlineDate', 'deadline0') || result.deadline;
+    const duration      = str('projectDuration', 'duration');
+    const typeOfAction  = str('typeOfAction');
+    const budget        = str('budgetTopicAction', 'totalBudget', 'budget') || result.budget;
+    const programme     = str('frameworkProgramme', 'programmeName') || result.programme;
+
+    return { title, fullDescription: fullDesc, openDate, deadline, duration, typeOfAction, budget, programme };
+  } catch {
+    return {};
+  }
 }
 
 function computeMatchingScore(text: string, keywords: string[]): number {

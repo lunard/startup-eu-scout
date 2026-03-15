@@ -141,16 +141,29 @@ ipcMain.handle('copilot:generateScheda', async (event, profile: ProfileData) => 
 });
 
 ipcMain.handle('eu:search', async (_event, { keywords, options }: { keywords: string[]; options?: Record<string, unknown> }) => {
-  sendLog('api', 'Ricerca EU API avviata.', `Keywords: ${keywords.join(', ')}`);
+  sendLog('api', 'EU API search started.', `Keywords: ${keywords.join(', ')}`);
   try {
     const results = await euSearch.searchFunding(keywords, options);
-    sendLog('success', `EU API: ${results.total} risultati trovati.`, `Search: ${results.requestText}`);
+    sendLog('success', `EU API: ${results.total} grants found.`, `Search: ${results.requestText}`);
     return { ok: true, ...results };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const status = (err as { response?: { status?: number } }).response?.status;
-    sendLog('error', `EU API errore: ${message}`, status ? `HTTP ${status}` : '');
+    sendLog('error', `EU API error: ${message}`, status ? `HTTP ${status}` : '');
     return { ok: false, error: message, results: [] };
+  }
+});
+
+ipcMain.handle('eu:enrichGrants', async (_event, { results }: { results: SearchResult[] }) => {
+  sendLog('api', `Crawling grant homepages: ${results.length} grants…`);
+  try {
+    const enriched = await euSearch.enrichGrantDetails(results);
+    sendLog('success', `Grant details crawled for ${enriched.length} grants.`);
+    return { ok: true, results: enriched };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    sendLog('error', `Grant crawl error: ${message}`);
+    return { ok: false, results, error: message };
   }
 });
 

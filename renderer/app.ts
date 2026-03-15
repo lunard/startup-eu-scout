@@ -398,6 +398,11 @@ $('btnSearch').addEventListener('click', () => { searchBandi(); });
   });
 });
 
+function setLoadingMsg(msg: string): void {
+  const el = document.getElementById('bandiLoadingMsg');
+  if (el) el.textContent = msg;
+}
+
 async function searchBandi(): Promise<void> {
   if (!state.keywords || state.keywords.length === 0) {
     show('bandiEmpty');
@@ -407,25 +412,23 @@ async function searchBandi(): Promise<void> {
   hide('bandiEmpty');
   show('bandiLoading');
   $('bandiResults').innerHTML = '';
+  $('bandiCount').classList.add('hidden');
 
   const period    = ($('programmePeriod') as HTMLSelectElement).value;
   const statusKey = ($('bandiStatus') as HTMLSelectElement).value;
   const language  = ($('bandiLanguage') as HTMLSelectElement).value;
   const programme = ($('bandiProgramme') as HTMLSelectElement).value;
-
-  appLog('api', `Searching grants — status: ${statusKey}, programme: ${programme}, language: ${language}`);
+  const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
 
   try {
-    const res = await window.euMatch.searchFunding(state.keywords, {
-      programmePeriod: period,
-      statusKey,
-      language,
-      programme
-    });
+    // ── Phase 1: Search ────────────────────────────────────────────────
+    setLoadingMsg('🔍 Step 1/3 — Searching EU grants...');
+    appLog('api', `Searching grants — status: ${statusKey}, programme: ${programme}, language: ${language}`);
 
-    hide('bandiLoading');
+    const res = await window.euMatch.searchFunding(state.keywords, { programmePeriod: period, statusKey, language, programme });
 
     if (!res.ok || !res.results || res.results.length === 0) {
+      hide('bandiLoading');
       $('bandiResults').innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📭</div>
@@ -434,20 +437,61 @@ async function searchBandi(): Promise<void> {
       return;
     }
 
-    state.bandiResults = res.results;
-    const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
+    appLog('success', `Found ${res.results.length} grants.`);
+
+    // ── Phase 2: Crawl grant homepages ────────────────────────────────
+    setLoadingMsg(`📄 Step 2/3 — Crawling grant homepages (${res.results.length} grants)...`);
+    appLog('api', `Crawling ${res.results.length} grant homepages for full details…`);
+
+    const enrichRes = await window.euMatch.enrichGrants(res.results);
+    const enriched: SearchResult[] = enrichRes.ok ? (enrichRes.results ?? res.results) : res.results;
+
+    appLog('success', `Grant details extracted for ${enriched.length} grants.`);
+
+    // ── Phase 3: Copilot analysis ─────────────────────────────────────
     if (ragioneSociale) {
       state.bandoAnalyses = await window.euMatch.loadBandoAnalyses(ragioneSociale);
     }
-    renderBandi(res.results, res.total ?? 0, res.isClosed ?? false);
-    $('bandiCount').textContent = res.results.length.toString();
-    $('bandiCount').classList.remove('hidden');
-    if (ragioneSociale) {
-      autoAnalyzeAllBandi(res.results, ragioneSociale);
+
+    const toAnalyze = ragioneSociale ? enriched.filter(b => !state.bandoAnalyses?.[b.id]) : [];
+    const fromCache = enriched.length - toAnalyze.length;
+    let done = fromCache;
+
+    setLoadingMsg(`🤖 Step 3/3 — Copilot analysis: ${done}/${enriched.length} grants analysed...`);
+    appLog('copilot', `Copilot analysis: ${toAnalyze.length} to analyse, ${fromCache} from cache`);
+
+    const BATCH = 3;
+    for (let i = 0; i < toAnalyze.length; i += BATCH) {
+      const batch = toAnalyze.slice(i, i + BATCH);
+      await Promise.allSettled(batch.map(async (b) => {
+        const r = await window.euMatch.analyzeBando(b, ragioneSociale);
+        if (r.ok && r.analysis) {
+          state.bandoAnalyses[b.id] = { analysis: r.analysis, savedAt: new Date().toISOString(), fitScore: r.fitScore ?? 50 };
+        }
+        done++;
+        setLoadingMsg(`🤖 Step 3/3 — Copilot analysis: ${done}/${enriched.length} grants analysed...`);
+      }));
     }
+
+    if (toAnalyze.length > 0) appLog('success', `Grant analysis complete: ${enriched.length} grants ranked.`);
+
+    // ── Final: Sort by partner score and render ───────────────────────
+    enriched.sort((a, b) => {
+      const sa = state.bandoAnalyses?.[a.id]?.fitScore ?? 0;
+      const sb = state.bandoAnalyses?.[b.id]?.fitScore ?? 0;
+      return sb - sa;
+    });
+
+    state.bandiResults = enriched;
+    hide('bandiLoading');
+    renderBandi(enriched, res.total ?? 0, res.isClosed ?? false);
+    $('bandiCount').textContent = enriched.length.toString();
+    $('bandiCount').classList.remove('hidden');
+
   } catch (err) {
     hide('bandiLoading');
     $('bandiResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml((err as Error).message)}</div>`;
+    appLog('error', `Search error: ${(err as Error).message}`);
   }
 }
 
@@ -456,7 +500,6 @@ function safeBandoId(id: string): string {
 }
 
 function renderBandi(results: SearchResult[], total: number, isClosed = false): void {
-  const cached = state.bandoAnalyses ?? {};
 
   const closedBanner = isClosed
     ? `<div class="alert alert-warning" style="margin-bottom:12px">
@@ -468,60 +511,53 @@ function renderBandi(results: SearchResult[], total: number, isClosed = false): 
   const header = `
     <div class="results-header">
       ${closedBanner}
-      <span class="results-count">Found <strong>${total}</strong> grants — showing ${results.length} by deadline</span>
+      <span class="results-count">Found <strong>${total}</strong> grants — showing ${results.length} ranked by partner fit</span>
     </div>`;
 
-  const cards = results.map((b) => {
-    const score = b.matchingScore;
-    const scoreClass  = score >= 60 ? 'score-high' : score >= 30 ? 'score-mid' : 'score-low';
+  const cards = results.map((b, rank) => {
+    const cached      = state.bandoAnalyses?.[b.id];
+    const fitScore    = cached?.fitScore ?? 0;
+    const fitClass    = fitScore >= 60 ? 'score-high' : fitScore >= 30 ? 'score-mid' : 'score-low';
     const isExpired   = isClosed;
     const statusLabel = isExpired ? '📁 Expired' : (b.status || 'N/A');
     const statusClass = isExpired ? 'status-unknown'
-      : b.status.includes('31094501') || b.status.includes('open') ? 'status-open'
-      : b.status.includes('31094502') || b.status.includes('forthcoming') ? 'status-forthcoming' : 'status-unknown';
-    const hasCached   = !!(cached[b.id]);
-    const fitScore    = cached[b.id]?.fitScore ?? 0;
-    const fitClass    = fitScore >= 60 ? 'score-high' : fitScore >= 30 ? 'score-mid' : 'score-low';
-    const safeId      = safeBandoId(b.id);
+      : b.status.toLowerCase().includes('open') ? 'status-open'
+      : b.status.toLowerCase().includes('forth') ? 'status-forthcoming' : 'status-unknown';
+    const safeId = safeBandoId(b.id);
+
+    const meta = [
+      b.programme  ? `🏛️ ${escHtml(b.programme)}` : '',
+      b.typeOfAction ? `⚗️ ${escHtml(b.typeOfAction)}` : '',
+      b.openDate   ? `📂 Opens: ${escHtml(fmtDate(b.openDate))}` : '',
+      b.deadline   ? `📅 Deadline: ${escHtml(fmtDate(b.deadline))}` : '',
+      b.duration   ? `⏱️ ${escHtml(b.duration)}` : '',
+      b.budget     ? `💰 ${escHtml(b.budget)}` : '',
+    ].filter(Boolean).map(m => `<span>${m}</span>`).join('');
 
     const beneficiariesBtn = isExpired && b.beneficiariesUrl
-      ? `<a class="btn btn-secondary btn-sm" data-href="${escHtml(b.beneficiariesUrl)}" style="text-decoration:none">
-           👥 View Partners on CORDIS
-         </a>`
+      ? `<a class="btn btn-secondary btn-sm" data-href="${escHtml(b.beneficiariesUrl)}" style="text-decoration:none">👥 View Partners on CORDIS</a>`
       : '';
 
-    const analysisHtml = hasCached
-      ? `<div class="analysis-area" id="bando-analysis-${safeId}">
-           <div class="analysis-content md-preview">${window.marked ? window.marked.parse(cached[b.id].analysis) : escHtml(cached[b.id].analysis)}</div>
-           <div class="analysis-footer">💾 Saved on ${escHtml(fmtDate(cached[b.id].savedAt))}</div>
+    const analysisHtml = cached
+      ? `<div class="analysis-area">
+           <div class="analysis-content md-preview">${window.marked ? window.marked.parse(cached.analysis) : escHtml(cached.analysis)}</div>
+           <div class="analysis-footer">💾 Saved on ${escHtml(fmtDate(cached.savedAt))}</div>
          </div>`
-      : `<div class="analysis-area" id="bando-analysis-${safeId}">
-           <div class="analysis-loading"><div class="spinner"></div><span>🔄 Copilot analysis in progress…</span></div>
-         </div>`;
+      : `<div class="analysis-area analysis-na"><em>No startup profile loaded — analysis not available.</em></div>`;
 
     return `
-      <div class="bando-card${isExpired ? ' bando-expired' : ''}" data-bando-id="${escHtml(b.id)}" data-fitscore="${hasCached ? fitScore : 0}">
+      <div class="bando-card${isExpired ? ' bando-expired' : ''}" data-bando-id="${escHtml(b.id)}" data-fitscore="${fitScore}">
         <div style="flex:1;min-width:0">
-          <div class="bando-title">${escHtml(b.title)}</div>
-          <div class="bando-meta">
-            <span>🏛️ ${escHtml(b.programme || 'N/D')}</span>
-            ${b.deadline ? `<span>📅 Deadline: ${escHtml(fmtDate(b.deadline))}</span>` : ''}
-            ${b.budget   ? `<span>💰 ${escHtml(b.budget)}</span>` : ''}
-            <span class="status-badge ${statusClass}">${escHtml(statusLabel)}</span>
-          </div>
-          ${b.description ? `<div class="bando-desc">${escHtml(b.description)}…</div>` : ''}
+          <div class="bando-title">#${rank + 1} ${escHtml(b.title)}</div>
+          <div class="bando-meta">${meta}<span class="status-badge ${statusClass}">${escHtml(statusLabel)}</span></div>
           <div class="bando-actions">
-            <a class="btn btn-secondary btn-sm" data-href="${escHtml(b.portalUrl)}" style="text-decoration:none">
-              🔗 Open in EU Portal
-            </a>
+            <a class="btn btn-secondary btn-sm" data-href="${escHtml(b.portalUrl)}" style="text-decoration:none">🔗 Open in EU Portal</a>
             ${beneficiariesBtn}
           </div>
           ${analysisHtml}
         </div>
         <div class="bando-score-box">
-          <div class="score-circle ${scoreClass}">${score}%</div>
-          <div class="score-label">Match<br>Score</div>
-          <div class="score-circle ${hasCached ? fitClass : 'score-pending'}" style="margin-top:8px">${hasCached ? `${fitScore}%` : '?'}</div>
+          <div class="score-circle ${fitClass}">${fitScore}%</div>
           <div class="score-label">Partner<br>Score</div>
         </div>
       </div>`;
@@ -535,61 +571,6 @@ function renderBandi(results: SearchResult[], total: number, isClosed = false): 
       window.open((a as HTMLElement).dataset.href, '_blank');
     });
   });
-}
-
-
-async function autoAnalyzeAllBandi(bandi: SearchResult[], ragioneSociale: string): Promise<void> {
-  const BATCH = 3;
-  const toAnalyze = bandi.filter(b => !state.bandoAnalyses?.[b.id]);
-  appLog('copilot', `Auto-analysis: ${toAnalyze.length} grants to analyse (${bandi.length - toAnalyze.length} from cache)`);
-
-  for (let i = 0; i < toAnalyze.length; i += BATCH) {
-    const batch = toAnalyze.slice(i, i + BATCH);
-    await Promise.allSettled(batch.map(b => analyzeOneBando(b, ragioneSociale)));
-    resortByFitScore();
-  }
-  if (toAnalyze.length > 0) appLog('success', 'Grant auto-analysis completed');
-}
-
-async function analyzeOneBando(bando: SearchResult, ragioneSociale: string): Promise<void> {
-  const safeId = safeBandoId(bando.id);
-  const analysisEl = document.getElementById(`bando-analysis-${safeId}`) as HTMLElement | null;
-  if (!analysisEl) return;
-
-  const res = await window.euMatch.analyzeBando(bando, ragioneSociale);
-  if (res.ok && res.analysis) {
-    const fitScore = res.fitScore ?? 50;
-    const html = window.marked ? window.marked.parse(res.analysis) : escHtml(res.analysis);
-    analysisEl.innerHTML = `
-      <div class="analysis-content md-preview">${html}</div>
-      <div class="analysis-footer">💾 Saved on ${escHtml(fmtDate(new Date().toISOString()))}</div>`;
-
-    const card = document.querySelector(`[data-bando-id="${escHtml(bando.id)}"]`) as HTMLElement | null;
-    if (card) {
-      card.dataset.fitscore = String(fitScore);
-      const circles = card.querySelectorAll('.score-circle');
-      const partnerCircle = circles[circles.length - 1] as HTMLElement | null;
-      if (partnerCircle) {
-        const cls = fitScore >= 60 ? 'score-high' : fitScore >= 30 ? 'score-mid' : 'score-low';
-        partnerCircle.className = `score-circle ${cls}`;
-        partnerCircle.textContent = `${fitScore}%`;
-      }
-    }
-
-    state.bandoAnalyses[bando.id] = { analysis: res.analysis, savedAt: new Date().toISOString(), fitScore };
-  } else {
-    analysisEl.innerHTML = `<div class="alert alert-error">❌ ${escHtml(res.error ?? 'Errore')}</div>`;
-  }
-}
-
-function resortByFitScore(): void {
-  const container = $('bandiResults');
-  const header = container.querySelector('.results-header');
-  const cards = [...container.querySelectorAll('.bando-card')] as HTMLElement[];
-  cards.sort((a, b) => parseInt(b.dataset.fitscore ?? '0') - parseInt(a.dataset.fitscore ?? '0'));
-  container.innerHTML = '';
-  if (header) container.appendChild(header);
-  cards.forEach(c => container.appendChild(c));
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

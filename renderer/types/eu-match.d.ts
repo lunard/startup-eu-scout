@@ -32,6 +32,10 @@ declare global {
     programme: string;
     budget: string;
     description: string;
+    fullDescription?: string;
+    duration?: string;
+    typeOfAction?: string;
+    detailUrl?: string;
     portalUrl: string;
     beneficiariesUrl?: string;
     matchingScore: number;
@@ -61,6 +65,7 @@ declare global {
     copilotCheckModel(): Promise<{ currentModel: string; isOpus: boolean | null; required: string }>;
     generateSchedaEU(profile: ProfileData): Promise<{ ok: boolean; schedaEU?: string; keywords?: string[]; error?: string }>;
     searchFunding(keywords: string[], options?: Record<string, unknown>): Promise<{ ok: boolean; total?: number; results?: SearchResult[]; isClosed?: boolean; error?: string }>;
+    enrichGrants(results: SearchResult[]): Promise<{ ok: boolean; results?: SearchResult[]; error?: string }>;
     analyzeBando(bando: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; fitScore?: number; error?: string }>;
     loadBandoAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string; fitScore?: number }>>;
     saveCredentials(username: string, password: string): Promise<{ ok: boolean; error?: string }>;

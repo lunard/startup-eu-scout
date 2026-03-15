@@ -169,33 +169,36 @@ OUTPUT:`;
 
 function buildBandoAnalysisPrompt(profile: ProfileData | null, schedaEU: string, bando: SearchResult): string {
   const ragioneSociale = profile?.ragioneSociale ?? 'N/D';
-  return `Sei un esperto di finanziamenti europei. Analizza la compatibilità tra la startup e il bando EU indicato.
+  const description = bando.fullDescription || bando.description || '';
+  return `You are a European funding expert. Analyse the compatibility between the startup and the EU grant below.
 
-## Profilo Startup
-Ragione Sociale: ${ragioneSociale}
-${schedaEU ? `\nScheda EU:\n${schedaEU.substring(0, 1500)}` : ''}
+## Startup Profile
+Company: ${ragioneSociale}
+${schedaEU ? `\nEU Summary Sheet:\n${schedaEU.substring(0, 1800)}` : ''}
 
-## Bando EU
-Titolo: ${bando.title}
-Programma: ${bando.programme || 'N/D'}
-Stato: ${bando.status || 'N/D'}
-${bando.deadline ? `Scadenza: ${bando.deadline}` : ''}
-${bando.budget ? `Budget: ${bando.budget}` : ''}
-${bando.description ? `Descrizione: ${bando.description}` : ''}
-URL: ${bando.portalUrl}
+## EU Grant
+Title: ${bando.title}
+Programme: ${bando.programme || 'N/A'}
+Type of Action: ${bando.typeOfAction || 'N/A'}
+${bando.openDate  ? `Opening Date: ${bando.openDate}` : ''}
+${bando.deadline  ? `Deadline: ${bando.deadline}` : ''}
+${bando.duration  ? `Project Duration: ${bando.duration}` : ''}
+${bando.budget    ? `Budget: ${bando.budget}` : ''}
+${description     ? `\nObjective / Description:\n${description}` : ''}
+Portal URL: ${bando.portalUrl}
 
-## Analisi richiesta (in italiano, formato Markdown)
-1. **Compatibilità** — Quanto è adatto questo bando alla startup? (Alta/Media/Bassa + spiegazione)
-2. **Ruolo del partner** — Come potrebbe partecipare la startup (capofila, partner tecnico, ecc.)?
-3. **Modalità di finanziamento** — Contributo a fondo perduto, loan, equity?
-4. **Durata e tempistiche** — Stima di durata progetto e scadenza candidatura
-5. **Informazioni chiave** — 3-5 bullet point con i requisiti/vincoli più importanti
+## Required Analysis (English, Markdown format)
+1. **Fit Rationale** — Why is (or isn't) this grant a good fit for the startup? (High/Medium/Low + explanation)
+2. **Partner Role** — How could the startup participate (coordinator, technical partner, SME, etc.)?
+3. **Funding Modality** — Grant, loan, equity? Max EU contribution rate?
+4. **Duration & Timeline** — Estimated project duration and application deadline
+5. **Key Requirements** — 3–5 bullet points with the most important eligibility conditions or constraints
 
-Rispondi SOLO con l'analisi strutturata in Markdown, senza preamboli.
+Reply ONLY with the structured Markdown analysis, no preamble.
 
-Alla fine dell'analisi, su una riga separata, scrivi ESATTAMENTE questa riga:
+At the very end, on a separate line, write EXACTLY:
 PUNTEGGIO_PARTNER: XX
-(dove XX è un numero intero da 0 a 100 che indica quanto questa startup è adatta come partner per questo bando)`;
+(where XX is an integer 0–100 representing how well this startup fits as a partner for this grant)`;
 }
 
 export async function analyzeBando(

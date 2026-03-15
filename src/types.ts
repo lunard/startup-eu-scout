@@ -42,6 +42,10 @@ export interface SearchResult {
   programme: string;
   budget: string;
   description: string;
+  fullDescription?: string;
+  duration?: string;
+  typeOfAction?: string;
+  detailUrl?: string;
   portalUrl: string;
   beneficiariesUrl?: string;
   matchingScore: number;
