@@ -4,8 +4,8 @@ const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 
-const OPUS_MODEL_IDS = ['claude-opus-4-6', 'claude-opus-4.6', 'opus-4-6', 'opus'];
-const REQUIRED_MODEL = 'claude-opus-4-6';
+const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5', 'opus'];
+const REQUIRED_MODEL = 'claude-opus-4.6';
 
 function parseVersion(raw) {
   // Extract only the version number/tag from the first line, drop update notices
