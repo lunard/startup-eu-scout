@@ -292,18 +292,23 @@ async function crawlGrantPage(result: SearchResult): Promise<Partial<SearchResul
       for (const k of keys) {
         const v = d[k];
         if (v && typeof v === 'string' && v.trim()) return v.trim();
+        // Some EU API fields return arrays — take the first non-empty element
+        if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && v[0].trim()) return v[0].trim();
       }
       return '';
     };
 
-    const title         = str('title') || result.title;
-    const fullDesc      = str('objective', 'description').substring(0, 3000);
-    const openDate      = str('startDate', 'submissionStartDate', 'openDate') || result.openDate;
-    const deadline      = str('deadlineDate', 'deadline0') || result.deadline;
-    const duration      = str('projectDuration', 'duration');
-    const typeOfAction  = str('typeOfAction');
-    const budget        = str('budgetTopicAction', 'totalBudget', 'budget') || result.budget;
-    const programme     = str('frameworkProgramme', 'programmeName') || result.programme;
+    const title        = str('title') || result.title;
+    const fullDesc     = str('objective', 'description').substring(0, 3000);
+    const openDate     = str('startDate', 'submissionStartDate', 'openDate') || result.openDate;
+    const deadline     = str('deadlineDate', 'deadline0') || result.deadline;
+    const duration     = str('projectDuration', 'duration');
+    const budget       = str('budgetTopicAction', 'totalBudget', 'budget') || result.budget;
+    const programme    = str('frameworkProgramme', 'programmeName') || result.programme;
+
+    // typeOfAction: EU JSON may use singular string, array, or nested object.
+    // Try multiple field names and extract the first usable string value.
+    const typeOfAction = str('typeOfAction', 'typeOfActions', 'actions', 'actionType', 'legalBasis');
 
     return { title, fullDescription: fullDesc, openDate, deadline, duration, typeOfAction, budget, programme };
   } catch {

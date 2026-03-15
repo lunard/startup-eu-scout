@@ -392,17 +392,26 @@ async function searchGrants() {
         const enriched = enrichRes.ok ? (enrichRes.results ?? res.results) : res.results;
         appLog('success', `Grant details extracted for ${enriched.length} grants.`);
         // ── Type of Action filter (applied post-crawl once typeOfAction is known) ──
-        // EU API returns full text ("Research and Innovation Action"), not acronyms.
-        // Map each acronym to a regex that matches the full-text variants.
+        // EU API may return full text ("Research and Innovation Action") OR acronym ("RIA").
+        // Regex covers both forms; IA is anchored to avoid matching inside "RIA"/"PRIA" etc.
         const TYPE_MATCH = {
-            'RIA': /research.*innovation.*action/i,
-            'IA': /^innovation action/i, // must NOT start with "research"
-            'CSA': /coordination.*support.*action/i,
-            'EIC': /\beic\b|european innovation council/i,
-            'MSCA': /\bmsca\b|marie\s*sk/i,
-            'ERC': /\berc\b|european research council/i,
+            'RIA': /^ria$|research.*innovation.*action/i,
+            'IA': /^ia$|^innovation action/i,
+            'CSA': /^csa$|coordination.*support.*action/i,
+            'EIC': /^eic\b|european innovation council/i,
+            'MSCA': /^msca\b|marie\s*sk/i,
+            'ERC': /^erc\b|european research council/i,
         };
         const typeRegex = TYPE_MATCH[typeOfAction.toUpperCase()] ?? null;
+        // Debug: log typeOfAction distribution to help diagnose empty values
+        if (typeOfAction !== 'all') {
+            const dist = enriched.reduce((acc, g) => {
+                const t = g.typeOfAction || '(empty)';
+                acc[t] = (acc[t] ?? 0) + 1;
+                return acc;
+            }, {});
+            appLog('info', `typeOfAction distribution: ${JSON.stringify(dist)}`);
+        }
         const typeFiltered = (typeOfAction === 'all' || !typeRegex)
             ? enriched
             : enriched.filter(g => g.typeOfAction && typeRegex.test(g.typeOfAction));
