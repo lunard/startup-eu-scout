@@ -53,9 +53,19 @@ interface ApiResponse {
   results?: RawHit[];
 }
 
+// Programme-browse texts: broader queries to surface all grants of a programme
+const PROGRAMME_BROWSE: Record<string, string> = {
+  'HORIZON': 'Horizon Europe Horizon-CL Horizon-EIC Horizon-MSCA Horizon-ERC Horizon-HLTH Horizon-WIDERA Horizon-INFRA Horizon-JU Horizon-KDT',
+  'EIC':     'EIC Accelerator EIC Pathfinder EIC Transition European Innovation Council',
+  'DIGITAL': 'Digital Europe DIGITAL Programme digital infrastructure cloud',
+  'COSME':   'COSME SMP Single Market Programme SME entrepreneurship',
+  'EIT':     'EIT KIC knowledge innovation community',
+  'LIFE':    'LIFE programme environment climate biodiversity',
+};
+
 export async function searchFunding(keywords: string[], options: SearchOptions = {}): Promise<SearchResponse> {
   if (!keywords || keywords.length === 0) {
-    throw new Error('Nessuna keyword fornita per la ricerca.');
+    throw new Error('No keywords provided for search.');
   }
 
   const {
@@ -65,21 +75,42 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     programme  = 'all'
   } = options;
 
-  const boost = programme !== 'all' ? (PROGRAMME_BOOST[programme.toUpperCase()] ?? programme) : '';
-  const text = [...keywords, boost].filter(Boolean).join(' ');
+  const boost      = programme !== 'all' ? (PROGRAMME_BOOST[programme.toUpperCase()] ?? programme) : '';
+  const keywordText = [...keywords, boost].filter(Boolean).join(' ');
 
   const FETCH_PER_PAGE = 100;
-  const PAGES_TO_FETCH = 5;
-  const fetches = Array.from({ length: PAGES_TO_FETCH }, (_, i) =>
+
+  // ── Primary search: keyword-relevance (5 pages) ───────────────────────────
+  const primaryFetches = Array.from({ length: 5 }, (_, i) =>
     axios.post<ApiResponse>(EU_SEARCH_BASE, {}, {
-      params: { apiKey: 'SEDIA', text, pageSize: FETCH_PER_PAGE, pageNumber: i + 1 },
+      params: { apiKey: 'SEDIA', text: keywordText, pageSize: FETCH_PER_PAGE, pageNumber: i + 1 },
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'EU-Match/0.2' },
       timeout: 25000
     }).catch(() => null)
   );
-  const pages = await Promise.all(fetches);
-  const hits = pages.flatMap(r => r?.data?.results ?? []);
-  const totalResults = pages.find(p => p)?.data?.totalResults ?? hits.length;
+
+  // ── Secondary search: programme-browse (10 pages) — only when programme selected ──
+  // This catches grants that don't rank highly for the startup's keywords
+  // but belong to the selected programme (e.g. IHI Joint Undertakings, niche calls)
+  const browseText = programme !== 'all' ? (PROGRAMME_BROWSE[programme.toUpperCase()] ?? programme) : null;
+  const secondaryFetches = browseText
+    ? Array.from({ length: 10 }, (_, i) =>
+        axios.post<ApiResponse>(EU_SEARCH_BASE, {}, {
+          params: { apiKey: 'SEDIA', text: browseText, pageSize: FETCH_PER_PAGE, pageNumber: i + 1 },
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'EU-Match/0.2' },
+          timeout: 25000
+        }).catch(() => null)
+      )
+    : [];
+
+  // Run both in parallel
+  const [primaryPages, secondaryPages] = await Promise.all([
+    Promise.all(primaryFetches),
+    Promise.all(secondaryFetches)
+  ]);
+
+  const hits         = [...primaryPages, ...secondaryPages].flatMap(r => r?.data?.results ?? []);
+  const totalResults = primaryPages.find(p => p)?.data?.totalResults ?? hits.length;
 
   const preferred = [language, 'en'];
   const byUrl = new Map<string, RawHit>();
@@ -138,11 +169,13 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
   const isClosedView = statusKey === 'closed';
 
   return {
-    total: totalResults,
-    results: top.map(item => normalizeResult(item, keywords, isClosedView)),
+    total:      totalResults,
+    rawFetched: hits.length,
+    uniqueFound: unique.length,
+    results:    top.map(item => normalizeResult(item, keywords, isClosedView)),
     pageSize,
     pageNumber: 1,
-    requestText: text,
+    requestText: keywordText,
     isClosed: isClosedView
   };
 }

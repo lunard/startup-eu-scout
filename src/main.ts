@@ -144,7 +144,7 @@ ipcMain.handle('eu:search', async (_event, { keywords, options }: { keywords: st
   sendLog('api', 'EU API search started.', `Keywords: ${keywords.join(', ')}`);
   try {
     const results = await euSearch.searchFunding(keywords, options);
-    sendLog('success', `EU API: ${results.total} grants found.`, `Search: ${results.requestText}`);
+    sendLog('success', `EU API: ${results.total} total — ${results.uniqueFound ?? '?'} unique after dedup (from ${results.rawFetched ?? '?'} raw)`, `Search: ${results.requestText?.substring(0, 80)}`);
     return { ok: true, ...results };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

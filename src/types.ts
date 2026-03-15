@@ -54,6 +54,8 @@ export interface SearchResult {
 
 export interface SearchResponse {
   total: number;
+  rawFetched?: number;
+  uniqueFound?: number;
   results: SearchResult[];
   pageSize: number;
   pageNumber: number;
