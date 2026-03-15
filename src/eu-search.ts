@@ -35,6 +35,8 @@ interface RawMeta {
   status?: string[];
   title?: string[];
   description?: string[];
+  typesOfAction?: string[];   // e.g. ["Research and Innovation Action"]
+  typeOfMGAs?: string[];
   [key: string]: string[] | undefined;
 }
 
@@ -207,13 +209,16 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
   const identifier = extractIdentifier(item.url) || item.reference || '';
   const meta       = item.metadata ?? {};
 
-  const title       = (meta.title ?? [])[0] || item.summary || (item.content ?? '').replace(/<[^>]+>/g, '') || 'N/D';
-  const programme   = (meta.frameworkProgramme ?? [])[0] ?? identifier.split('-')[0] ?? '';
-  const deadline    = (meta.deadline ?? meta.closingDate ?? meta.es_SortDate ?? [])[0] ?? '';
-  const openDate    = (meta['openDate'] ?? meta['startDate'] ?? meta.es_SortDate ?? [])[0] ?? '';
-  const budget      = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
-  const description = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
-  const metaKws     = meta.keywords ?? [];
+  const title        = (meta.title ?? [])[0] || item.summary || (item.content ?? '').replace(/<[^>]+>/g, '') || 'N/D';
+  const programme    = (meta.frameworkProgramme ?? [])[0] ?? identifier.split('-')[0] ?? '';
+  const deadline     = (meta.deadline ?? meta.closingDate ?? meta.es_SortDate ?? [])[0] ?? '';
+  const openDate     = (meta['openDate'] ?? meta['startDate'] ?? meta.es_SortDate ?? [])[0] ?? '';
+  const budget       = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
+  const description  = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
+  const metaKws      = meta.keywords ?? [];
+  // typesOfAction lives in the search metadata — read it here so the type filter
+  // works without needing to crawl the individual grant page.
+  const typeOfAction = (meta.typesOfAction ?? meta.typeOfMGAs ?? [])[0] ?? '';
 
   const portalUrl = identifier
     ? `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${identifier}`
@@ -234,6 +239,7 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
     programme,
     budget,
     description,
+    typeOfAction,
     detailUrl,
     portalUrl,
     beneficiariesUrl,
