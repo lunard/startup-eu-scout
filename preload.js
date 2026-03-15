@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('euMatch', {
   deleteProfile: (ragioneSociale) =>
     ipcRenderer.invoke('storage:delete', { ragioneSociale }),
 
+  updateProfile: (ragioneSociale, data) =>
+    ipcRenderer.invoke('storage:update', { ragioneSociale, data }),
+
   // --- Copilot ---
   copilotHealthCheck: () =>
     ipcRenderer.invoke('copilot:health'),

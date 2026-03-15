@@ -426,6 +426,17 @@ $('btnRecheckModal').addEventListener('click', async () => {
   await runHealthCheck();
 });
 
+// ─── Auto-save URL on blur ────────────────────────────────────────────────────
+$('websiteUrl').addEventListener('blur', async () => {
+  const ragioneSociale = $('ragioneSociale').value.trim();
+  const url = $('websiteUrl').value.trim();
+  if (!ragioneSociale || !url) return;
+  await window.euMatch.updateProfile(ragioneSociale, { url });
+  if (state.currentProfile && state.currentProfile.ragioneSociale === ragioneSociale) {
+    state.currentProfile.url = url;
+  }
+});
+
 // ─── Enter key for profile form ───────────────────────────────────────────────
 ['ragioneSociale', 'websiteUrl'].forEach(id => {
   $(id).addEventListener('keydown', e => {

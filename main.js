@@ -63,6 +63,12 @@ ipcMain.handle('storage:delete', async (_, { ragioneSociale }) => {
   return { ok: true };
 });
 
+ipcMain.handle('storage:update', async (_, { ragioneSociale, data }) => {
+  if (!ragioneSociale) return { ok: false };
+  storage.saveProfile(ragioneSociale, data);
+  return { ok: true };
+});
+
 // ─── IPC: Startup Profiler ─────────────────────────────────────────────────────
 
 ipcMain.handle('profiler:build', async (event, { ragioneSociale, url }) => {
@@ -75,6 +81,10 @@ ipcMain.handle('profiler:build', async (event, { ragioneSociale, url }) => {
   send('⏳', 'Verifica cache locale…');
   const cached = storage.loadProfile(ragioneSociale);
   if (cached && cached.rawText) {
+    if (url && url !== cached.url) {
+      storage.saveProfile(ragioneSociale, { url });
+      cached.url = url;
+    }
     send('✅', 'Profilo caricato dalla cache.');
     return { ...cached, fromCache: true };
   }
