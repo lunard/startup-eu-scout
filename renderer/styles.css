@@ -533,3 +533,40 @@ body {
 .log-entry.level-storage .log-msg { color: #7d8590; }
 
 .log-empty { color: #484f58; text-align: center; padding: 40px; font-style: italic; font-size: 12px; }
+
+/* ─── Bando Analysis Panel ───────────────────────────── */
+.bando-analysis {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.analysis-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 10px 0;
+}
+.analysis-content {
+  font-size: 13px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+.analysis-footer {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.analysis-cached-badge {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+}
