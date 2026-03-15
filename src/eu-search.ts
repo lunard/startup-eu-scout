@@ -127,17 +127,33 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
       if (!id.startsWith(pUp) && !fp.some(f => f.includes(pUp))) continue;
     }
 
-    // Status filter — permissive: only exclude on positive identification
+    // Status filter — combine API status codes with deadline-date fallback
+    // The EU API often returns missing/unrecognised codes for old grants;
+    // if the deadline has passed we treat the grant as effectively closed.
     const meta         = item.metadata ?? {};
     const itemStatuses = meta.status ?? [];
     const isClosed      = itemStatuses.some(s => s === '31094503' || s === '3' || s.toLowerCase().includes('closed'));
     const isOpen        = itemStatuses.some(s => s === '31094501' || s === '1' || s.toLowerCase().includes('open'));
     const isForthcoming = itemStatuses.some(s => s === '31094502' || s === '2' || s.toLowerCase().includes('forthcoming'));
 
-    if (statusKey === 'closed' && !isClosed) continue;
-    else if (statusKey === 'open-forthcoming' && isClosed) continue;
-    else if (statusKey === 'open' && (isClosed || isForthcoming)) continue;
-    else if (statusKey === 'forthcoming' && (isClosed || isOpen)) continue;
+    // Deadline-date fallback: if deadline is in the past → treat as closed
+    const deadlineRaw = (meta.deadline ?? meta.closingDate ?? meta.es_SortDate ?? [])[0];
+    const deadlineDate = deadlineRaw ? new Date(deadlineRaw) : null;
+    const now = new Date();
+    const isDeadlinePast = deadlineDate && !isNaN(deadlineDate.getTime()) && deadlineDate < now;
+
+    // effectivelyClosed = positively closed by API code OR deadline has passed
+    const effectivelyClosed = isClosed || !!isDeadlinePast;
+
+    if (statusKey === 'closed') {
+      // Only include grants we can positively identify as closed
+      if (!effectivelyClosed) continue;
+    } else {
+      // For all active modes: exclude anything with a past deadline
+      if (effectivelyClosed) continue;
+      if (statusKey === 'open' && isForthcoming) continue;
+      if (statusKey === 'forthcoming' && isOpen) continue;
+    }
 
     const existing = byUrl.get(key);
     if (!existing) {

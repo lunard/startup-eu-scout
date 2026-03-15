@@ -327,17 +327,21 @@ $('btnDownloadMd').addEventListener('click', () => {
     a.click();
     URL.revokeObjectURL(url);
 });
-// ─── Search Bandi ─────────────────────────────────────────────────────────────
+// ─── Grant Search ──────────────────────────────────────────────────────────────
 $('btnSearchGrants').addEventListener('click', async () => {
     switchToTab('grants');
     await searchGrants();
 });
 $('btnSearch').addEventListener('click', () => { searchGrants(); });
-// Re-search automatically when any filter changes
+// Re-search when a filter changes — debounced + guarded against concurrent runs
+let _searchDebounce = null;
 ['programmePeriod', 'grantStatus', 'grantLanguage', 'grantProgramme'].forEach(id => {
     $(id).addEventListener('change', () => {
-        if (state.keywords && state.keywords.length > 0)
-            searchGrants();
+        if (!state.keywords || state.keywords.length === 0)
+            return;
+        if (_searchDebounce)
+            clearTimeout(_searchDebounce);
+        _searchDebounce = setTimeout(() => searchGrants(), 400);
     });
 });
 function setLoadingMsg(msg) {
@@ -345,11 +349,15 @@ function setLoadingMsg(msg) {
     if (el)
         el.textContent = msg;
 }
+let _searchInProgress = false;
 async function searchGrants() {
+    if (_searchInProgress)
+        return; // prevent concurrent runs
     if (!state.keywords || state.keywords.length === 0) {
         show('grantsEmpty');
         return;
     }
+    _searchInProgress = true;
     hide('grantsEmpty');
     show('grantsLoading');
     $('grantResults').innerHTML = '';
@@ -435,6 +443,9 @@ async function searchGrants() {
         hide('grantsLoading');
         $('grantResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
         appLog('error', `Search error: ${err.message}`);
+    }
+    finally {
+        _searchInProgress = false;
     }
 }
 function safeGrantId(id) {
