@@ -211,8 +211,8 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
 
   const title        = (meta.title ?? [])[0] || item.summary || (item.content ?? '').replace(/<[^>]+>/g, '') || 'N/D';
   const programme    = (meta.frameworkProgramme ?? [])[0] ?? identifier.split('-')[0] ?? '';
-  const deadline     = (meta.deadline ?? meta.closingDate ?? meta.es_SortDate ?? [])[0] ?? '';
-  const openDate     = (meta['openDate'] ?? meta['startDate'] ?? meta.es_SortDate ?? [])[0] ?? '';
+  const deadline     = (meta.deadline ?? meta.closingDate ?? [])[0] ?? '';
+  const openDate     = (meta['openDate'] ?? meta['startDate'] ?? [])[0] ?? '';
   const budget       = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
   const description  = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
   const metaKws      = meta.keywords ?? [];
