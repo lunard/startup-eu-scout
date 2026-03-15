@@ -575,3 +575,38 @@ body {
 .grant-expired { opacity: 0.85; border-left: 3px solid var(--text-muted); }
 .grant-expired .grant-title { color: var(--text-muted); }
 .alert-warning { background: #fff8e1; color: #7d5e00; border: 1px solid #ffe082; }
+
+/* ─── Acronym glossary ───────────────────────────────── */
+.acronym-glossary {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.acronym-glossary summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--primary);
+  font-weight: 500;
+}
+.acronym-glossary dl {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: var(--bg-secondary, #f5f7fa);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.acronym-glossary dt {
+  font-weight: 700;
+  color: var(--primary);
+  padding-top: 2px;
+}
+.acronym-glossary dd {
+  margin: 0;
+  line-height: 1.5;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.acronym-glossary dd:last-child { border-bottom: none; }

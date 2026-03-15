@@ -187,6 +187,18 @@
             </select>
           </div>
           <div class="form-group">
+            <label>Type of Action</label>
+            <select id="grantTypeOfAction">
+              <option value="all" selected>All Types</option>
+              <option value="RIA">RIA — Research &amp; Innovation Action</option>
+              <option value="IA">IA — Innovation Action</option>
+              <option value="CSA">CSA — Coordination &amp; Support Action</option>
+              <option value="EIC">EIC — European Innovation Council</option>
+              <option value="MSCA">MSCA — Marie Skłodowska-Curie Actions</option>
+              <option value="ERC">ERC — European Research Council</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>Preferred Language</label>
             <select id="grantLanguage">
               <option value="en" selected>🇬🇧 English</option>
@@ -200,6 +212,17 @@
             </select>
           </div>
         </div>
+        <details class="acronym-glossary">
+          <summary>ℹ️ Grant type acronyms</summary>
+          <dl>
+            <dt>RIA</dt><dd><strong>Research &amp; Innovation Action</strong> — Collaborative research, TRL 1–4. Generates new knowledge; multiple partners required.</dd>
+            <dt>IA</dt><dd><strong>Innovation Action</strong> — Close-to-market, TRL 5–8. Prototyping, pilots, demonstrations, first commercial application.</dd>
+            <dt>CSA</dt><dd><strong>Coordination &amp; Support Action</strong> — No primary research. Networking, dissemination, standardisation, policy support.</dd>
+            <dt>EIC</dt><dd><strong>European Innovation Council</strong> — Pathfinder (early-stage), Transition (scale-up) and Accelerator (blended finance) for deep-tech startups &amp; SMEs.</dd>
+            <dt>MSCA</dt><dd><strong>Marie Skłodowska-Curie Actions</strong> — Researcher mobility &amp; training: Doctoral Networks (DN), Postdoctoral Fellowships (PF), Staff Exchanges (SE).</dd>
+            <dt>ERC</dt><dd><strong>European Research Council</strong> — Frontier/basic research for individual PIs: Starting (StG), Consolidator (CoG), Advanced (AdG), Synergy (SyG).</dd>
+          </dl>
+        </details>
         <div class="btn-group">
           <button class="btn btn-primary" id="btnSearch">
             <span>🔎</span> Refresh Search

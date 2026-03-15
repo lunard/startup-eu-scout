@@ -393,7 +393,7 @@ $('btnSearch').addEventListener('click', () => { searchGrants(); });
 
 // Re-search when a filter changes — debounced + guarded against concurrent runs
 let _searchDebounce: ReturnType<typeof setTimeout> | null = null;
-['programmePeriod', 'grantStatus', 'grantLanguage', 'grantProgramme'].forEach(id => {
+['programmePeriod', 'grantStatus', 'grantLanguage', 'grantProgramme', 'grantTypeOfAction'].forEach(id => {
   $(id).addEventListener('change', () => {
     if (!state.keywords || state.keywords.length === 0) return;
     if (_searchDebounce) clearTimeout(_searchDebounce);
@@ -421,10 +421,11 @@ async function searchGrants(): Promise<void> {
   $('grantResults').innerHTML = '';
   $('grantCount').classList.add('hidden');
 
-  const period         = ($('programmePeriod') as HTMLSelectElement).value;
-  const statusKey      = ($('grantStatus')    as HTMLSelectElement).value;
-  const language       = ($('grantLanguage')  as HTMLSelectElement).value;
-  const programme      = ($('grantProgramme') as HTMLSelectElement).value;
+  const period         = ($('programmePeriod')     as HTMLSelectElement).value;
+  const statusKey      = ($('grantStatus')         as HTMLSelectElement).value;
+  const language       = ($('grantLanguage')       as HTMLSelectElement).value;
+  const programme      = ($('grantProgramme')      as HTMLSelectElement).value;
+  const typeOfAction   = ($('grantTypeOfAction')   as HTMLSelectElement).value;  // 'all' | 'RIA' | 'IA' | …
   const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
   const isClosed       = statusKey === 'closed';
 
@@ -457,12 +458,30 @@ async function searchGrants(): Promise<void> {
 
     appLog('success', `Grant details extracted for ${enriched.length} grants.`);
 
+    // ── Type of Action filter (applied post-crawl once typeOfAction is known) ──
+    const typeFiltered = typeOfAction === 'all'
+      ? enriched
+      : enriched.filter(g => g.typeOfAction && g.typeOfAction.toUpperCase().includes(typeOfAction.toUpperCase()));
+
+    if (typeFiltered.length === 0) {
+      hide('grantsLoading');
+      $('grantResults').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          No <strong>${escHtml(typeOfAction)}</strong> grants found matching your keywords. Try "All Types".
+        </div>`;
+      return;
+    }
+    if (typeOfAction !== 'all') {
+      appLog('info', `Type filter applied: ${typeOfAction} — ${typeFiltered.length} of ${enriched.length} grants match.`);
+    }
+
     // ── Closed grants: show info + partner list, no Copilot ───────────
     if (isClosed) {
-      state.grantResults = enriched;
+      state.grantResults = typeFiltered;
       hide('grantsLoading');
-      renderGrants(enriched, res.total ?? 0, true);
-      $('grantCount').textContent = enriched.length.toString();
+      renderGrants(typeFiltered, res.total ?? 0, true);
+      $('grantCount').textContent = typeFiltered.length.toString();
       $('grantCount').classList.remove('hidden');
       return;
     }
@@ -472,7 +491,7 @@ async function searchGrants(): Promise<void> {
     const TOP_N = 5;
 
     // Pre-rank by keyword relevance, take top 15 for Copilot analysis
-    const sortedByKeyword = [...enriched].sort((a, b) => b.matchingScore - a.matchingScore);
+    const sortedByKeyword = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
     const analysisPool = sortedByKeyword.slice(0, COPILOT_POOL);
 
     if (ragioneSociale) {
