@@ -166,9 +166,24 @@
           <div class="form-group">
             <label>Stato Bando</label>
             <select id="bandiStatus">
-              <option value="open-forthcoming">Aperti + In Arrivo</option>
-              <option value="open">Solo Aperti</option>
-              <option value="forthcoming">Solo In Arrivo</option>
+              <option value="open-forthcoming" selected>✅ Aperti + In Arrivo</option>
+              <option value="open">🟢 Solo Aperti</option>
+              <option value="forthcoming">🔜 Solo In Arrivo</option>
+              <option value="closed">📁 Solo Scaduti</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Programma</label>
+            <select id="bandiProgramme">
+              <option value="all" selected>Tutti i programmi</option>
+              <option value="HORIZON">Horizon Europe</option>
+              <option value="EIC">EIC Accelerator</option>
+              <option value="DIGITAL">Digital Europe</option>
+              <option value="COSME">COSME / SMP</option>
+              <option value="EIT">EIT</option>
+              <option value="LIFE">LIFE</option>
+              <option value="IMI2">IMI2</option>
+              <option value="JTI">JTI / Clean Sky</option>
             </select>
           </div>
           <div class="form-group">

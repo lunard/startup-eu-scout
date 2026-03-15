@@ -570,3 +570,8 @@ body {
   font-weight: 600;
   padding: 1px 6px;
 }
+
+/* ─── Expired bandi ──────────────────────────────────── */
+.bando-expired { opacity: 0.85; border-left: 3px solid var(--text-muted); }
+.bando-expired .bando-title { color: var(--text-muted); }
+.alert-warning { background: #fff8e1; color: #7d5e00; border: 1px solid #ffe082; }

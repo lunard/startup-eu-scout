@@ -42,6 +42,7 @@ export interface SearchResult {
   budget: string;
   description: string;
   portalUrl: string;
+  beneficiariesUrl?: string;
   matchingScore: number;
 }
 
@@ -51,6 +52,7 @@ export interface SearchResponse {
   pageSize: number;
   pageNumber: number;
   requestText?: string;
+  isClosed?: boolean;
 }
 
 export interface CredentialData {
