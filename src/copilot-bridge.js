@@ -5,8 +5,8 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
-const OPUS_MODEL_IDS = ['claude-opus-4.5', 'claude-opus-4.6', 'claude-opus-4.6-fast'];
-const REQUIRED_MODEL = 'claude-opus-4.5';
+const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5'];
+const REQUIRED_MODEL = 'claude-opus-4.6';
 const CONFIG_PATH = path.join(os.homedir(), '.copilot', 'config.json');
 
 function stripAnsi(str) {
@@ -79,7 +79,7 @@ async function checkModel(customPath) {
 }
 
 // ─── Prompt Runner ─────────────────────────────────────────────────────────────
-// copilot --prompt "..." --model claude-opus-4.5 --allow-all-tools --output-format text
+// copilot --prompt "..." --model claude-opus-4.6 --allow-all-tools --output-format text
 // --allow-all-tools is required for non-interactive mode (no stdin approval prompts)
 
 function spawnPrompt(bin, prompt, model, onChunk) {
