@@ -16,9 +16,9 @@ let mainWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
+    width: 1792,
     height: 800,
-    minWidth: 960,
+    minWidth: 1344,
     minHeight: 600,
     title: 'EU-Match — Scouting Finanziamenti Europei',
     webPreferences: {
