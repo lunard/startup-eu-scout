@@ -5,6 +5,7 @@ const state = {
     schedaEU: '',
     keywords: [],
     bandiResults: [],
+    bandoAnalyses: {},
     logErrorCount: 0
 };
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -332,6 +333,13 @@ $('btnCercaBandi').addEventListener('click', async () => {
     await searchBandi();
 });
 $('btnSearch').addEventListener('click', () => { searchBandi(); });
+// Re-search automatically when any filter changes
+['programmePeriod', 'bandiStatus', 'bandiLanguage'].forEach(id => {
+    $(id).addEventListener('change', () => {
+        if (state.keywords && state.keywords.length > 0)
+            searchBandi();
+    });
+});
 async function searchBandi() {
     if (!state.keywords || state.keywords.length === 0) {
         show('bandiEmpty');
@@ -342,15 +350,18 @@ async function searchBandi() {
     $('bandiResults').innerHTML = '';
     const period = $('programmePeriod').value;
     const statusVal = $('bandiStatus').value;
+    const language = $('bandiLanguage').value;
     const statusMap = {
         'open-forthcoming': ['31094501', '31094502'],
         'open': ['31094501'],
         'forthcoming': ['31094502']
     };
+    appLog('api', `Ricerca bandi — lingua: ${language}, periodo: ${period}`);
     try {
         const res = await window.euMatch.searchFunding(state.keywords, {
             programmePeriod: period,
-            status: statusMap[statusVal] ?? statusMap['open-forthcoming']
+            status: statusMap[statusVal] ?? statusMap['open-forthcoming'],
+            language
         });
         hide('bandiLoading');
         if (!res.ok || !res.results || res.results.length === 0) {
@@ -363,9 +374,9 @@ async function searchBandi() {
         }
         state.bandiResults = res.results;
         // Load saved analyses for this startup before rendering
-        const ragioneSociale = state.currentProfile?.ragioneSociale || '';
+        const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
         if (ragioneSociale) {
-          state.bandoAnalyses = await window.euMatch.loadBandoAnalyses(ragioneSociale);
+            state.bandoAnalyses = await window.euMatch.loadBandoAnalyses(ragioneSociale);
         }
         renderBandi(res.results, res.total ?? 0);
         $('bandiCount').textContent = res.results.length.toString();
@@ -377,38 +388,34 @@ async function searchBandi() {
     }
 }
 function renderBandi(results, total) {
-  const sorted = [...results].sort((a, b) => b.matchingScore - a.matchingScore);
-  const cached = state.bandoAnalyses || {};
-
-  const header = `
+    const sorted = [...results].sort((a, b) => b.matchingScore - a.matchingScore);
+    const cached = state.bandoAnalyses ?? {};
+    const header = `
     <div class="results-header">
       <span class="results-count">Trovati <strong>${total}</strong> bandi — mostrati ${sorted.length} per rilevanza</span>
     </div>`;
-
-  const cards = sorted.map((b, i) => {
-    const score       = b.matchingScore;
-    const scoreClass  = score >= 60 ? 'score-high' : score >= 30 ? 'score-mid' : 'score-low';
-    const statusClass = b.status.toLowerCase().includes('open') ? 'status-open'
-      : b.status.toLowerCase().includes('forth') ? 'status-forthcoming' : 'status-unknown';
-    const hasCached   = !!(cached[b.id]);
-    const btnLabel    = hasCached ? '📋 Mostra Analisi Salvata' : '🤖 Analizza per la mia startup';
-    const savedBadge  = hasCached ? '<span class="analysis-cached-badge">💾 Salvata</span>' : '';
-
-    const analysisHtml = hasCached
-      ? `<div class="bando-analysis" id="bando-analysis-${i}" data-done="1">
-           <div class="analysis-content md-preview">${window.marked ? marked.parse(cached[b.id].analysis) : escHtml(cached[b.id].analysis)}</div>
+    const cards = sorted.map((b, i) => {
+        const score = b.matchingScore;
+        const scoreClass = score >= 60 ? 'score-high' : score >= 30 ? 'score-mid' : 'score-low';
+        const statusClass = b.status.toLowerCase().includes('open') ? 'status-open'
+            : b.status.toLowerCase().includes('forth') ? 'status-forthcoming' : 'status-unknown';
+        const hasCached = !!(cached[b.id]);
+        const btnLabel = hasCached ? '📋 Mostra Analisi Salvata' : '🤖 Analizza per la mia startup';
+        const savedBadge = hasCached ? '<span class="analysis-cached-badge">💾 Salvata</span>' : '';
+        const analysisHtml = hasCached
+            ? `<div class="bando-analysis" id="bando-analysis-${i}" data-done="1">
+           <div class="analysis-content md-preview">${window.marked ? window.marked.parse(cached[b.id].analysis) : escHtml(cached[b.id].analysis)}</div>
            <div class="analysis-footer">💾 Salvata il ${escHtml(fmtDate(cached[b.id].savedAt))}</div>
          </div>`
-      : `<div class="bando-analysis hidden" id="bando-analysis-${i}"></div>`;
-
-    return `
+            : `<div class="bando-analysis hidden" id="bando-analysis-${i}"></div>`;
+        return `
       <div class="bando-card" id="bando-card-${i}">
         <div style="flex:1;min-width:0">
           <div class="bando-title">${escHtml(b.title)}</div>
           <div class="bando-meta">
             <span>🏛️ ${escHtml(b.programme || 'N/D')}</span>
             ${b.deadline ? `<span>📅 ${escHtml(fmtDate(b.deadline))}</span>` : ''}
-            ${b.budget   ? `<span>💰 ${escHtml(b.budget)}</span>` : ''}
+            ${b.budget ? `<span>💰 ${escHtml(b.budget)}</span>` : ''}
             <span class="status-badge ${statusClass}">${escHtml(b.status || 'N/D')}</span>
             ${savedBadge}
           </div>
@@ -426,60 +433,54 @@ function renderBandi(results, total) {
           <div class="score-label">Match<br>Score</div>
         </div>
       </div>`;
-  }).join('');
-
-  $('bandiResults').innerHTML = header + cards;
-
-  $('bandiResults').querySelectorAll('a[data-href]').forEach(a => {
-    a.addEventListener('click', e => { e.preventDefault(); window.open(a.dataset.href, '_blank'); });
-  });
-
-  $('bandiResults').querySelectorAll('.btn-analizza').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx   = parseInt(btn.dataset.idx);
-      const bando = sorted[idx];
-      runBandoAnalysis(btn, idx, bando);
+    }).join('');
+    $('bandiResults').innerHTML = header + cards;
+    $('bandiResults').querySelectorAll('a[data-href]').forEach(a => {
+        a.addEventListener('click', e => {
+            e.preventDefault();
+            window.open(a.dataset.href, '_blank');
+        });
     });
-  });
+    $('bandiResults').querySelectorAll('.btn-analizza').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.idx ?? '0');
+            const bando = sorted[idx];
+            runBandoAnalysis(btn, idx, bando);
+        });
+    });
 }
-
 async function runBandoAnalysis(btn, idx, bando) {
-  const analysisEl = $(`bando-analysis-${idx}`);
-
-  // Cached — toggle
-  if (analysisEl.dataset.done === '1') {
-    analysisEl.classList.toggle('hidden');
-    btn.textContent = analysisEl.classList.contains('hidden') ? '📋 Mostra Analisi Salvata' : '📋 Nascondi Analisi';
-    return;
-  }
-
-  const ragioneSociale = state.currentProfile?.ragioneSociale || '';
-  btn.disabled = true;
-  btn.textContent = '⏳ Analisi in corso…';
-  show(`bando-analysis-${idx}`);
-  analysisEl.innerHTML = '<div class="analysis-loading"><div class="spinner"></div><span>Copilot sta analizzando il bando…</span></div>';
-  appLog('copilot', `Analisi bando: "${bando.title.substring(0, 60)}…"`);
-
-  const res = await window.euMatch.analyzeBando(bando, ragioneSociale);
-
-  if (res.ok) {
-    const html = window.marked ? marked.parse(res.analysis) : escHtml(res.analysis);
-    analysisEl.innerHTML = `
+    const analysisEl = $(`bando-analysis-${idx}`);
+    // Cached — toggle visibility
+    if (analysisEl.dataset.done === '1') {
+        analysisEl.classList.toggle('hidden');
+        btn.textContent = analysisEl.classList.contains('hidden') ? '📋 Mostra Analisi Salvata' : '📋 Nascondi Analisi';
+        return;
+    }
+    const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
+    btn.disabled = true;
+    btn.textContent = '⏳ Analisi in corso…';
+    show(`bando-analysis-${idx}`);
+    analysisEl.innerHTML = '<div class="analysis-loading"><div class="spinner"></div><span>Copilot sta analizzando il bando…</span></div>';
+    appLog('copilot', `Analisi bando: "${bando.title.substring(0, 60)}…"`);
+    const res = await window.euMatch.analyzeBando(bando, ragioneSociale);
+    if (res.ok && res.analysis) {
+        const html = window.marked ? window.marked.parse(res.analysis) : escHtml(res.analysis);
+        analysisEl.innerHTML = `
       <div class="analysis-content md-preview">${html}</div>
       <div class="analysis-footer">💾 Salvata ora — ricaricata automaticamente per questa startup</div>`;
-    analysisEl.dataset.done = '1';
-    if (!state.bandoAnalyses) state.bandoAnalyses = {};
-    state.bandoAnalyses[bando.id] = { analysis: res.analysis, savedAt: new Date().toISOString() };
-    btn.textContent = '📋 Nascondi Analisi';
-    appLog('success', `Analisi bando salvata: ${bando.id}`);
-  } else {
-    analysisEl.innerHTML = `<div class="alert alert-error">❌ ${escHtml(res.error)}</div>`;
-    btn.textContent = '🤖 Riprova Analisi';
-    appLog('error', `Errore analisi bando: ${res.error}`);
-  }
-  btn.disabled = false;
+        analysisEl.dataset.done = '1';
+        state.bandoAnalyses[bando.id] = { analysis: res.analysis, savedAt: new Date().toISOString() };
+        btn.textContent = '📋 Nascondi Analisi';
+        appLog('success', `Analisi bando salvata: ${bando.id}`);
+    }
+    else {
+        analysisEl.innerHTML = `<div class="alert alert-error">❌ ${escHtml(res.error ?? 'Errore sconosciuto')}</div>`;
+        btn.textContent = '🤖 Riprova Analisi';
+        appLog('error', `Errore analisi bando: ${res.error}`);
+    }
+    btn.disabled = false;
 }
-
 // ─── Settings ─────────────────────────────────────────────────────────────────
 async function loadSettings() {
     const s = await window.euMatch.getSettings();

@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import type { ProfileData, AppSettings, HealthCheckResult, ModelCheckResult } from './types';
+import type { ProfileData, AppSettings, HealthCheckResult, ModelCheckResult, SearchResult } from './types';
 
 const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5'];
 const REQUIRED_MODEL = 'claude-opus-4.6';
@@ -165,4 +165,41 @@ SCHEDA:
 ${schedaEU}
 
 OUTPUT:`;
+}
+
+function buildBandoAnalysisPrompt(profile: ProfileData | null, schedaEU: string, bando: SearchResult): string {
+  const ragioneSociale = profile?.ragioneSociale ?? 'N/D';
+  return `Sei un esperto di finanziamenti europei. Analizza la compatibilità tra la startup e il bando EU indicato.
+
+## Profilo Startup
+Ragione Sociale: ${ragioneSociale}
+${schedaEU ? `\nScheda EU:\n${schedaEU.substring(0, 1500)}` : ''}
+
+## Bando EU
+Titolo: ${bando.title}
+Programma: ${bando.programme || 'N/D'}
+Stato: ${bando.status || 'N/D'}
+${bando.deadline ? `Scadenza: ${bando.deadline}` : ''}
+${bando.budget ? `Budget: ${bando.budget}` : ''}
+${bando.description ? `Descrizione: ${bando.description}` : ''}
+URL: ${bando.portalUrl}
+
+## Analisi richiesta (in italiano, formato Markdown)
+1. **Compatibilità** — Quanto è adatto questo bando alla startup? (Alta/Media/Bassa + spiegazione)
+2. **Ruolo del partner** — Come potrebbe partecipare la startup (capofila, partner tecnico, ecc.)?
+3. **Modalità di finanziamento** — Contributo a fondo perduto, loan, equity?
+4. **Durata e tempistiche** — Stima di durata progetto e scadenza candidatura
+5. **Informazioni chiave** — 3-5 bullet point con i requisiti/vincoli più importanti
+
+Rispondi SOLO con l'analisi strutturata in Markdown, senza preamboli.`;
+}
+
+export async function analyzeBando(
+  profile: ProfileData | null,
+  schedaEU: string,
+  bando: SearchResult,
+  settings: AppSettings
+): Promise<string> {
+  const bin = resolveCopilotBin(settings?.copilotPath);
+  return spawnPrompt(bin, buildBandoAnalysisPrompt(profile, schedaEU, bando), REQUIRED_MODEL, null);
 }

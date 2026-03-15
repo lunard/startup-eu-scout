@@ -10,6 +10,7 @@ interface SearchOptions {
   pageNumber?: number;
   programmePeriod?: string;
   status?: string[];
+  language?: string;
   [key: string]: unknown;
 }
 
@@ -40,11 +41,14 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     throw new Error('Nessuna keyword fornita per la ricerca.');
   }
 
-  const { pageSize = DEFAULT_PAGE_SIZE, pageNumber = 1 } = options;
+  const { pageSize = DEFAULT_PAGE_SIZE, pageNumber = 1, language = 'en' } = options;
   const text = Array.isArray(keywords) ? keywords.join(' ') : keywords;
 
+  // Over-fetch to account for cross-language duplicates (24 EU official languages)
+  const fetchSize = Math.min(pageSize * 8, 200);
+
   const response = await axios.post<ApiResponse>(EU_SEARCH_BASE, {}, {
-    params: { apiKey: 'SEDIA', text, pageSize, pageNumber },
+    params: { apiKey: 'SEDIA', text, pageSize: fetchSize, pageNumber },
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'EU-Match/0.2' },
     timeout: 20000
   });
@@ -52,9 +56,29 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
   const data = response.data;
   const hits = data.results ?? [];
 
+  // Deduplicate by topic URL — keep one entry per topic in preferred language order
+  const byUrl = new Map<string, RawHit & { language?: string }>();
+  const preferred = [language, 'en'];
+  for (const item of hits) {
+    const key = ((item.url ?? item.reference ?? '') as string).replace(/\.json$/, '');
+    if (!key) continue;
+    const existing = byUrl.get(key);
+    if (!existing) {
+      byUrl.set(key, item as RawHit & { language?: string });
+    } else {
+      const curPref = preferred.indexOf((existing.language ?? '') as string);
+      const newPref = preferred.indexOf(((item as RawHit & { language?: string }).language ?? '') as string);
+      const curScore = curPref === -1 ? 99 : curPref;
+      const newScore = newPref === -1 ? 99 : newPref;
+      if (newScore < curScore) byUrl.set(key, item as RawHit & { language?: string });
+    }
+  }
+
+  const unique = [...byUrl.values()].slice(0, pageSize);
+
   return {
     total: data.totalResults ?? hits.length,
-    results: hits.map(item => normalizeResult(item, keywords)),
+    results: unique.map(item => normalizeResult(item, keywords)),
     pageSize,
     pageNumber,
     requestText: text

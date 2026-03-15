@@ -82,3 +82,13 @@ export function saveSettings(settings: Partial<AppSettings>): void {
   const current = store.get('settings', {}) as AppSettings;
   store.set('settings', { ...current, ...settings });
 }
+
+export function saveBandoAnalysis(ragioneSociale: string, bandoId: string, analysis: string): void {
+  const key = profileKey(ragioneSociale);
+  store.set(`analyses.${key}.${bandoId}`, { analysis, savedAt: new Date().toISOString() });
+}
+
+export function loadBandoAnalyses(ragioneSociale: string): Record<string, { analysis: string; savedAt: string }> {
+  const key = profileKey(ragioneSociale);
+  return (store.get(`analyses.${key}`, {}) as Record<string, { analysis: string; savedAt: string }>);
+}

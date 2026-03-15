@@ -6,7 +6,7 @@ import * as profiler from './startup-profiler';
 import * as copilot from './copilot-bridge';
 import * as euSearch from './eu-search';
 import * as euAuth from './eu-auth';
-import type { ProfileData, AppSettings } from './types';
+import type { ProfileData, AppSettings, SearchResult } from './types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -174,6 +174,27 @@ ipcMain.handle('eu:testConnectivity', async () => {
   const result = await euAuth.testApiConnectivity();
   sendLog(result.ok ? 'success' : 'error', result.message, `HTTP status: ${result.status}`);
   return result;
+});
+
+ipcMain.handle('copilot:analyzeBando', async (_event, { bando, ragioneSociale }: { bando: SearchResult; ragioneSociale: string }) => {
+  sendLog('copilot', `Analisi bando: "${bando.title.substring(0, 60)}…"`);
+  const settings = storage.getSettings();
+  const profile = storage.loadProfile(ragioneSociale);
+  const schedaEU = profile?.schedaEU ?? '';
+  try {
+    const analysis = await copilot.analyzeBando(profile, schedaEU, bando, settings);
+    storage.saveBandoAnalysis(ragioneSociale, bando.id, analysis);
+    sendLog('success', `Analisi bando salvata: ${bando.id}`);
+    return { ok: true, analysis };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    sendLog('error', `Errore analisi bando: ${message}`);
+    return { ok: false, error: message };
+  }
+});
+
+ipcMain.handle('bando:loadAnalyses', async (_event, { ragioneSociale }: { ragioneSociale: string }) => {
+  return storage.loadBandoAnalyses(ragioneSociale);
 });
 
 ipcMain.handle('cred:save', async (_event, { username, password }: { username: string; password: string }) => {

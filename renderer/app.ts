@@ -7,6 +7,7 @@ interface AppState {
   schedaEU: string;
   keywords: string[];
   bandiResults: SearchResult[];
+  bandoAnalyses: Record<string, { analysis: string; savedAt: string }>;
   logErrorCount: number;
 }
 
@@ -15,6 +16,7 @@ const state: AppState = {
   schedaEU: '',
   keywords: [],
   bandiResults: [],
+  bandoAnalyses: {},
   logErrorCount: 0
 };
 
@@ -389,6 +391,13 @@ $('btnCercaBandi').addEventListener('click', async () => {
 
 $('btnSearch').addEventListener('click', () => { searchBandi(); });
 
+// Re-search automatically when any filter changes
+['programmePeriod', 'bandiStatus', 'bandiLanguage'].forEach(id => {
+  $(id).addEventListener('change', () => {
+    if (state.keywords && state.keywords.length > 0) searchBandi();
+  });
+});
+
 async function searchBandi(): Promise<void> {
   if (!state.keywords || state.keywords.length === 0) {
     show('bandiEmpty');
@@ -401,16 +410,20 @@ async function searchBandi(): Promise<void> {
 
   const period = ($('programmePeriod') as HTMLSelectElement).value;
   const statusVal = ($('bandiStatus') as HTMLSelectElement).value;
+  const language = ($('bandiLanguage') as HTMLSelectElement).value;
   const statusMap: Record<string, string[]> = {
     'open-forthcoming': ['31094501', '31094502'],
     'open': ['31094501'],
     'forthcoming': ['31094502']
   };
 
+  appLog('api', `Ricerca bandi — lingua: ${language}, periodo: ${period}`);
+
   try {
     const res = await window.euMatch.searchFunding(state.keywords, {
       programmePeriod: period,
-      status: statusMap[statusVal] ?? statusMap['open-forthcoming']
+      status: statusMap[statusVal] ?? statusMap['open-forthcoming'],
+      language
     });
 
     hide('bandiLoading');
@@ -425,8 +438,14 @@ async function searchBandi(): Promise<void> {
     }
 
     state.bandiResults = res.results;
-    renderBandi(res.results, res.total ?? 0);
 
+    // Load saved analyses for this startup before rendering
+    const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
+    if (ragioneSociale) {
+      state.bandoAnalyses = await window.euMatch.loadBandoAnalyses(ragioneSociale);
+    }
+
+    renderBandi(res.results, res.total ?? 0);
     $('bandiCount').textContent = res.results.length.toString();
     $('bandiCount').classList.remove('hidden');
   } catch (err) {
@@ -437,34 +456,48 @@ async function searchBandi(): Promise<void> {
 
 function renderBandi(results: SearchResult[], total: number): void {
   const sorted = [...results].sort((a, b) => b.matchingScore - a.matchingScore);
+  const cached = state.bandoAnalyses ?? {};
 
   const header = `
     <div class="results-header">
       <span class="results-count">Trovati <strong>${total}</strong> bandi — mostrati ${sorted.length} per rilevanza</span>
     </div>`;
 
-  const cards = sorted.map(b => {
+  const cards = sorted.map((b, i) => {
     const score = b.matchingScore;
     const scoreClass = score >= 60 ? 'score-high' : score >= 30 ? 'score-mid' : 'score-low';
     const statusClass = b.status.toLowerCase().includes('open') ? 'status-open'
       : b.status.toLowerCase().includes('forth') ? 'status-forthcoming' : 'status-unknown';
+    const hasCached = !!(cached[b.id]);
+    const btnLabel = hasCached ? '📋 Mostra Analisi Salvata' : '🤖 Analizza per la mia startup';
+    const savedBadge = hasCached ? '<span class="analysis-cached-badge">💾 Salvata</span>' : '';
+
+    const analysisHtml = hasCached
+      ? `<div class="bando-analysis" id="bando-analysis-${i}" data-done="1">
+           <div class="analysis-content md-preview">${window.marked ? window.marked.parse(cached[b.id].analysis) : escHtml(cached[b.id].analysis)}</div>
+           <div class="analysis-footer">💾 Salvata il ${escHtml(fmtDate(cached[b.id].savedAt))}</div>
+         </div>`
+      : `<div class="bando-analysis hidden" id="bando-analysis-${i}"></div>`;
 
     return `
-      <div class="bando-card">
-        <div>
+      <div class="bando-card" id="bando-card-${i}">
+        <div style="flex:1;min-width:0">
           <div class="bando-title">${escHtml(b.title)}</div>
           <div class="bando-meta">
             <span>🏛️ ${escHtml(b.programme || 'N/D')}</span>
-            ${b.deadline ? `<span>📅 Scadenza: ${escHtml(b.deadline)}</span>` : ''}
+            ${b.deadline ? `<span>📅 ${escHtml(fmtDate(b.deadline))}</span>` : ''}
             ${b.budget ? `<span>💰 ${escHtml(b.budget)}</span>` : ''}
             <span class="status-badge ${statusClass}">${escHtml(b.status || 'N/D')}</span>
+            ${savedBadge}
           </div>
           ${b.description ? `<div class="bando-desc">${escHtml(b.description)}…</div>` : ''}
           <div class="bando-actions">
-            <a href="${escHtml(b.portalUrl)}" class="btn btn-secondary btn-sm" id="link-${escHtml(b.id)}" style="text-decoration:none">
+            <a class="btn btn-secondary btn-sm" data-href="${escHtml(b.portalUrl)}" style="text-decoration:none">
               🔗 Apri nel Portale EU
             </a>
+            <button class="btn btn-primary btn-sm btn-analizza" data-idx="${i}">${btnLabel}</button>
           </div>
+          ${analysisHtml}
         </div>
         <div class="bando-score-box">
           <div class="score-circle ${scoreClass}">${score}%</div>
@@ -475,12 +508,56 @@ function renderBandi(results: SearchResult[], total: number): void {
 
   $('bandiResults').innerHTML = header + cards;
 
-  $('bandiResults').querySelectorAll('a[href^="http"]').forEach(link => {
-    link.addEventListener('click', e => {
+  $('bandiResults').querySelectorAll('a[data-href]').forEach(a => {
+    a.addEventListener('click', e => {
       e.preventDefault();
-      window.open((link as HTMLAnchorElement).href, '_blank');
+      window.open((a as HTMLElement).dataset.href, '_blank');
     });
   });
+
+  $('bandiResults').querySelectorAll('.btn-analizza').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt((btn as HTMLElement).dataset.idx ?? '0');
+      const bando = sorted[idx];
+      runBandoAnalysis(btn as HTMLButtonElement, idx, bando);
+    });
+  });
+}
+
+async function runBandoAnalysis(btn: HTMLButtonElement, idx: number, bando: SearchResult): Promise<void> {
+  const analysisEl = $(`bando-analysis-${idx}`);
+
+  // Cached — toggle visibility
+  if ((analysisEl as HTMLElement & { dataset: DOMStringMap }).dataset.done === '1') {
+    analysisEl.classList.toggle('hidden');
+    btn.textContent = analysisEl.classList.contains('hidden') ? '📋 Mostra Analisi Salvata' : '📋 Nascondi Analisi';
+    return;
+  }
+
+  const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
+  btn.disabled = true;
+  btn.textContent = '⏳ Analisi in corso…';
+  show(`bando-analysis-${idx}`);
+  analysisEl.innerHTML = '<div class="analysis-loading"><div class="spinner"></div><span>Copilot sta analizzando il bando…</span></div>';
+  appLog('copilot', `Analisi bando: "${bando.title.substring(0, 60)}…"`);
+
+  const res = await window.euMatch.analyzeBando(bando, ragioneSociale);
+
+  if (res.ok && res.analysis) {
+    const html = window.marked ? window.marked.parse(res.analysis) : escHtml(res.analysis);
+    analysisEl.innerHTML = `
+      <div class="analysis-content md-preview">${html}</div>
+      <div class="analysis-footer">💾 Salvata ora — ricaricata automaticamente per questa startup</div>`;
+    (analysisEl as HTMLElement & { dataset: DOMStringMap }).dataset.done = '1';
+    state.bandoAnalyses[bando.id] = { analysis: res.analysis, savedAt: new Date().toISOString() };
+    btn.textContent = '📋 Nascondi Analisi';
+    appLog('success', `Analisi bando salvata: ${bando.id}`);
+  } else {
+    analysisEl.innerHTML = `<div class="alert alert-error">❌ ${escHtml(res.error ?? 'Errore sconosciuto')}</div>`;
+    btn.textContent = '🤖 Riprova Analisi';
+    appLog('error', `Errore analisi bando: ${res.error}`);
+  }
+  btn.disabled = false;
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

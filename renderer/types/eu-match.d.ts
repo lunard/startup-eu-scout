@@ -58,6 +58,8 @@ declare global {
     copilotCheckModel(): Promise<{ currentModel: string; isOpus: boolean | null; required: string }>;
     generateSchedaEU(profile: ProfileData): Promise<{ ok: boolean; schedaEU?: string; keywords?: string[]; error?: string }>;
     searchFunding(keywords: string[], options?: Record<string, unknown>): Promise<{ ok: boolean; total?: number; results?: SearchResult[]; error?: string }>;
+    analyzeBando(bando: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; error?: string }>;
+    loadBandoAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string }>>;
     saveCredentials(username: string, password: string): Promise<{ ok: boolean; error?: string }>;
     loadCredentials(): Promise<{ ok: boolean; data?: { username: string } | null }>;
     clearCredentials(): Promise<{ ok: boolean }>;
