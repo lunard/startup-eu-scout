@@ -37,6 +37,7 @@ interface RawMeta {
   description?: string[];
   typesOfAction?: string[];   // e.g. ["Research and Innovation Action"]
   typeOfMGAs?: string[];
+  actions?: string[];         // JSON string: [{status,deadlineDates,plannedOpeningDate,...}]
   [key: string]: string[] | undefined;
 }
 
@@ -211,14 +212,31 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
 
   const title        = (meta.title ?? [])[0] || item.summary || (item.content ?? '').replace(/<[^>]+>/g, '') || 'N/D';
   const programme    = (meta.frameworkProgramme ?? [])[0] ?? identifier.split('-')[0] ?? '';
-  const deadline     = (meta.deadline ?? meta.closingDate ?? [])[0] ?? '';
-  const openDate     = (meta['openDate'] ?? meta['startDate'] ?? [])[0] ?? '';
   const budget       = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
   const description  = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
   const metaKws      = meta.keywords ?? [];
   // typesOfAction lives in the search metadata — read it here so the type filter
   // works without needing to crawl the individual grant page.
   const typeOfAction = (meta.typesOfAction ?? meta.typeOfMGAs ?? [])[0] ?? '';
+
+  // Parse the 'actions' JSON string — most authoritative source for deadline/openDate.
+  // Format: '[{"status":{"abbreviation":"Closed"},"deadlineDates":["09 April 2021"],"plannedOpeningDate":"..."}]'
+  let actionsDeadline = '';
+  let actionsOpenDate = '';
+  try {
+    const actionsStr = (meta.actions ?? [])[0];
+    if (actionsStr) {
+      const acts = JSON.parse(actionsStr) as Array<{ deadlineDates?: string[]; plannedOpeningDate?: string }>;
+      const allDeadlines = acts.flatMap(a => a.deadlineDates ?? []);
+      if (allDeadlines.length > 0) actionsDeadline = allDeadlines[allDeadlines.length - 1];
+      const opening = acts[0]?.plannedOpeningDate ?? '';
+      if (opening) actionsOpenDate = opening;
+    }
+  } catch { /* malformed JSON — ignore */ }
+
+  // Prefer explicit metadata fields, fall back to parsed actions data
+  const deadline = (meta.deadline ?? meta.closingDate ?? [])[0] ?? actionsDeadline;
+  const openDate = (meta['openDate'] ?? meta['startDate'] ?? [])[0] ?? actionsOpenDate;
 
   const portalUrl = identifier
     ? `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${identifier}`
