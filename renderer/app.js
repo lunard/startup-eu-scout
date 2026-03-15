@@ -234,16 +234,22 @@ async function generateScheda(profile) {
   show('schedaLoading');
   hide('schedaInfo');
   hide('keywordsCard');
+  hide('schedaSubTabs');
+  hide('schedaPreviewPanel');
+  hide('schedaSourcePanel');
+  hide('btnDownloadMd');
 
-  const contentEl = $('schedaContent');
-  contentEl.textContent = '';
-  show('schedaContent');
-  contentEl.classList.add('streaming');
+  // Stream chunks into source panel as raw text (live feedback)
+  const sourceEl = $('schedaSource');
+  const previewEl = $('schedaContent');
+  sourceEl.textContent = '';
+  previewEl.innerHTML = '';
+  show('schedaSubTabs');
+  activateSubTab('source'); // show raw stream while generating
 
-  // Stream chunks into the UI as raw text
   window.euMatch.onCopilotChunk((text) => {
-    contentEl.textContent += text;
-    contentEl.scrollTop = contentEl.scrollHeight;
+    sourceEl.textContent += text;
+    sourceEl.scrollTop = sourceEl.scrollHeight;
   });
 
   try {
@@ -252,7 +258,7 @@ async function generateScheda(profile) {
     if (!result.ok) {
       setAlert('schedaInfo', 'error', `❌ Errore Copilot: ${result.error}`);
       show('schedaInfo');
-      hide('schedaContent');
+      hide('schedaSubTabs');
     } else {
       renderScheda(result.schedaEU, result.keywords);
       state.schedaEU = result.schedaEU;
@@ -263,26 +269,58 @@ async function generateScheda(profile) {
     show('schedaInfo');
   } finally {
     hide('schedaLoading');
-    contentEl.classList.remove('streaming');
     window.euMatch.removeCopilotChunkListener();
   }
 }
 
 function renderScheda(schedaText, keywords) {
-  const contentEl = $('schedaContent');
-  // Render as Markdown HTML
-  contentEl.innerHTML = window.marked ? marked.parse(schedaText) : schedaText.replace(/\n/g, '<br>');
-  contentEl.classList.add('md-preview');
-  show('schedaContent');
   hide('schedaInfo');
 
+  const previewEl = $('schedaContent');
+  const sourceEl  = $('schedaSource');
+
+  // Populate both panels
+  previewEl.innerHTML = window.marked ? marked.parse(schedaText) : schedaText.replace(/\n/g, '<br>');
+  sourceEl.textContent = schedaText;
+
+  show('schedaSubTabs');
+  activateSubTab('preview'); // switch to preview after generation
+  show('btnDownloadMd');
+
+  // Update download button filename
+  $('btnDownloadMd').dataset.content = schedaText;
+
   if (keywords && keywords.length > 0) {
-    $('keywordsList').innerHTML = keywords.map(kw => `
-      <span class="keyword-chip">${escHtml(kw)}</span>
-    `).join('');
+    $('keywordsList').innerHTML = keywords.map(kw =>
+      `<span class="keyword-chip">${escHtml(kw)}</span>`
+    ).join('');
     show('keywordsCard');
   }
 }
+
+// ─── Sub-tab switching (Scheda Preview/Source) ─────────────────────────────────
+function activateSubTab(name) {
+  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.subtab === name);
+  });
+  toggle('schedaPreviewPanel', name === 'preview');
+  toggle('schedaSourcePanel',  name === 'source');
+}
+
+document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => activateSubTab(btn.dataset.subtab));
+});
+
+// ─── Download MD ───────────────────────────────────────────────────────────────
+$('btnDownloadMd').addEventListener('click', () => {
+  const content  = $('schedaSource').textContent;
+  const filename = `${(state.currentProfile?.ragioneSociale || 'scheda').replace(/\s+/g,'_')}_scheda_eu.md`;
+  const blob = new Blob([content], { type: 'text/markdown' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+  a.click();
+  URL.revokeObjectURL(url);
+});
 
 // ─── Search Bandi ─────────────────────────────────────────────────────────────
 $('btnCercaBandi').addEventListener('click', async () => {

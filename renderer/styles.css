@@ -220,17 +220,11 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px;
-  font-size: 14px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
   min-height: 200px;
-  max-height: 50vh;
+  max-height: 55vh;
   overflow-y: auto;
-  color: var(--text);
+  margin-top: 12px;
 }
-.scheda-content.streaming { border-color: var(--eu-blue); }
-.scheda-placeholder { color: var(--text-muted); font-style: italic; font-size: 14px; padding: 40px; text-align: center; }
 .keywords-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .keyword-chip {
   background: var(--eu-blue);
@@ -402,6 +396,48 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #aab5cc; }
+
+/* ─── Sub-tabs (Scheda Preview/Source) ──────────────── */
+.sub-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin: 16px 0 0;
+}
+.sub-tab-btn {
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: var(--font);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sub-tab-btn:hover { color: var(--eu-blue); }
+.sub-tab-btn.active { color: var(--eu-blue); border-bottom-color: var(--eu-blue); }
+
+.scheda-source {
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: 'Monaco','Menlo','Consolas',monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 20px;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 55vh;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 12px;
+  border: 1px solid #30363d;
+}
 
 /* ─── Markdown Preview ───────────────────────────────── */
 .md-preview {

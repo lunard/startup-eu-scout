@@ -108,7 +108,10 @@
     <!-- ══ TAB: SCHEDA EU ════════════════════════════════ -->
     <section class="tab-panel" id="tab-scheda">
       <div class="card">
-        <div class="card-title">🇪🇺 Scheda Riassuntiva Europea</div>
+        <div class="card-title" style="justify-content:space-between">
+          <span>🇪🇺 Scheda Riassuntiva Europea</span>
+          <button class="btn btn-secondary btn-sm hidden" id="btnDownloadMd">⬇️ Scarica .md</button>
+        </div>
         <div class="alert alert-info" id="schedaInfo">
           Completa prima il profilo startup e clicca "Genera Scheda EU con Copilot".
         </div>
@@ -116,8 +119,17 @@
           <div class="spinner"></div>
           <span>Copilot Opus 4.6 sta analizzando il profilo...</span>
         </div>
-        <div id="schedaContent" class="scheda-content hidden">
-          <span class="scheda-placeholder">La scheda apparirà qui...</span>
+
+        <!-- Sub-tabs: Preview / Source -->
+        <div class="sub-tabs hidden" id="schedaSubTabs">
+          <button class="sub-tab-btn active" data-subtab="preview">👁️ Anteprima</button>
+          <button class="sub-tab-btn" data-subtab="source">📝 Sorgente</button>
+        </div>
+        <div id="schedaPreviewPanel" class="hidden">
+          <div id="schedaContent" class="scheda-content md-preview"></div>
+        </div>
+        <div id="schedaSourcePanel" class="hidden">
+          <pre id="schedaSource" class="scheda-source"></pre>
         </div>
       </div>
 
