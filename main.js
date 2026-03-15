@@ -21,6 +21,7 @@ function createWindow() {
     minWidth: 1344,
     minHeight: 600,
     title: 'EU-Match — Scouting Finanziamenti Europei',
+    icon: path.join(__dirname, 'assets', process.platform === 'darwin' ? 'icon.icns' : 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -34,6 +35,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(path.join(__dirname, 'assets', 'icon.png'));
+  }
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

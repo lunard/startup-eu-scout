@@ -25,7 +25,8 @@
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "sharp": "^0.34.5"
   },
   "build": {
     "appId": "com.eu-match.app",
@@ -35,9 +36,11 @@
     },
     "mac": {
       "category": "public.app-category.business",
+      "icon": "assets/icon.icns",
       "target": "dmg"
     },
     "win": {
+      "icon": "assets/icon.png",
       "target": "nsis"
     },
     "files": [

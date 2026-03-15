@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0040b8"/>
+      <stop offset="100%" style="stop-color:#002277"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#00000044"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="248" fill="url(#bg)"/>
+
+  <!-- Outer gold ring -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#FFCC00" stroke-width="6" opacity="0.4"/>
+
+  <!-- 12 EU stars arranged in a ring at r=155 -->
+  <!-- Star helper: each star is a 5-pointed star, scaled to 18px, centered at (cx,cy) -->
+  <g fill="#FFCC00" filter="url(#shadow)">
+    <!-- 0° -->  <path transform="translate(256,101) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 30° --> <path transform="translate(333.5,121.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 60° --> <path transform="translate(390.5,178.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 90° --> <path transform="translate(411,256) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 120°--> <path transform="translate(390.5,333.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 150°--> <path transform="translate(333.5,390.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 180°--> <path transform="translate(256,411) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 210°--> <path transform="translate(178.5,390.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 240°--> <path transform="translate(121.5,333.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 270°--> <path transform="translate(101,256) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 300°--> <path transform="translate(121.5,178.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+    <!-- 330°--> <path transform="translate(178.5,121.5) scale(1.15)" d="M0-18 5.5-5.5 18-5.5 8.5 3.5 11.5 17 0 9.5 -11.5 17 -8.5 3.5 -18-5.5 -5.5-5.5Z"/>
+  </g>
+
+  <!-- Magnifying glass body (circle) -->
+  <circle cx="238" cy="238" r="72" fill="none" stroke="white" stroke-width="22" opacity="0.95"/>
+  <!-- Magnifying glass handle -->
+  <line x1="293" y1="293" x2="348" y2="348" stroke="white" stroke-width="22" stroke-linecap="round" opacity="0.95"/>
+
+  <!-- "EU" text inside lens -->
+  <text x="238" y="252" text-anchor="middle" dominant-baseline="middle"
+        font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="52" fill="white" letter-spacing="-1" opacity="0.95">EU</text>
+</svg>
