@@ -392,9 +392,20 @@ async function searchGrants() {
         const enriched = enrichRes.ok ? (enrichRes.results ?? res.results) : res.results;
         appLog('success', `Grant details extracted for ${enriched.length} grants.`);
         // ── Type of Action filter (applied post-crawl once typeOfAction is known) ──
-        const typeFiltered = typeOfAction === 'all'
+        // EU API returns full text ("Research and Innovation Action"), not acronyms.
+        // Map each acronym to a regex that matches the full-text variants.
+        const TYPE_MATCH = {
+            'RIA': /research.*innovation.*action/i,
+            'IA': /^innovation action/i, // must NOT start with "research"
+            'CSA': /coordination.*support.*action/i,
+            'EIC': /\beic\b|european innovation council/i,
+            'MSCA': /\bmsca\b|marie\s*sk/i,
+            'ERC': /\berc\b|european research council/i,
+        };
+        const typeRegex = TYPE_MATCH[typeOfAction.toUpperCase()] ?? null;
+        const typeFiltered = (typeOfAction === 'all' || !typeRegex)
             ? enriched
-            : enriched.filter(g => g.typeOfAction && g.typeOfAction.toUpperCase().includes(typeOfAction.toUpperCase()));
+            : enriched.filter(g => g.typeOfAction && typeRegex.test(g.typeOfAction));
         if (typeFiltered.length === 0) {
             hide('grantsLoading');
             $('grantResults').innerHTML = `
