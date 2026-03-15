@@ -65,9 +65,17 @@
       </div>
 
       <!-- Loading -->
-      <div class="loading-row hidden" id="profileLoading">
-        <div class="spinner"></div>
-        <span id="profileLoadingText">Recupero dati in corso...</span>
+      <div class="card hidden" id="profileLoading">
+        <div class="card-title">
+          <div class="spinner"></div>
+          <span id="profileLoadingText">Avvio profilazione…</span>
+        </div>
+        <div class="live-log" id="liveLog">
+          <div class="log-line info">
+            <span class="log-ts">00:00</span>
+            <span class="log-msg">In attesa di risposta…<span class="log-cursor"></span></span>
+          </div>
+        </div>
       </div>
 
       <!-- Profile Data -->

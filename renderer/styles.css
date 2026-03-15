@@ -364,7 +364,39 @@ body {
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 13px; }
 .empty-state .empty-icon { font-size: 36px; margin-bottom: 12px; }
 
-/* ─── Scrollbar ──────────────────────────────────────── */
+/* ─── Live Log ───────────────────────────────────────── */
+.live-log {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #e6edf3;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+.live-log .log-line { display: flex; gap: 10px; align-items: baseline; }
+.live-log .log-ts { color: #6e7681; font-size: 10px; flex-shrink: 0; }
+.live-log .log-msg { color: #e6edf3; }
+.live-log .log-line.warn .log-msg { color: #d29922; }
+.live-log .log-line.ok .log-msg   { color: #3fb950; }
+.live-log .log-line.err .log-msg  { color: #f85149; }
+.live-log .log-line.info .log-msg { color: #58a6ff; }
+.live-log .log-line.save .log-msg { color: #bc8cff; }
+.live-log .log-cursor {
+  display: inline-block;
+  width: 7px; height: 13px;
+  background: #e6edf3;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+  margin-left: 2px;
+  border-radius: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

@@ -5,21 +5,21 @@ const cheerio = require('cheerio');
 
 const OPENCORPORATES_BASE = 'https://api.opencorporates.com/v0.4';
 
-async function fetchBusinessRegister(ragioneSociale, country = 'it') {
+async function fetchBusinessRegister(ragioneSociale, onStep) {
+  onStep('⏳', `Ricerca registro imprese: "${ragioneSociale}"…`);
   try {
     const res = await axios.get(`${OPENCORPORATES_BASE}/companies/search`, {
-      params: {
-        q: ragioneSociale,
-        jurisdiction_code: country,
-        format: 'json'
-      },
-      timeout: 10000
+      params: { q: ragioneSociale, jurisdiction_code: 'it', format: 'json' },
+      timeout: 8000,
+      signal: AbortSignal.timeout(8000)
     });
-
     const companies = res.data?.results?.companies;
-    if (!companies || companies.length === 0) return null;
-
+    if (!companies || companies.length === 0) {
+      onStep('⚠️', 'Registro: nessuna azienda trovata con questo nome.');
+      return null;
+    }
     const best = companies[0].company;
+    onStep('✅', `Registro: trovata "${best.name}" — n° ${best.company_number}`);
     return {
       ragioneSociale: best.name,
       jurisdiction: best.jurisdiction_code,
@@ -29,59 +29,67 @@ async function fetchBusinessRegister(ragioneSociale, country = 'it') {
       registryUrl: best.opencorporates_url
     };
   } catch (err) {
-    console.warn('[startup-profiler] OpenCorporates lookup failed:', err.message);
+    const reason = err.response?.status === 401
+      ? 'API key OpenCorporates non configurata'
+      : err.code === 'ECONNABORTED' || err.name === 'AbortError'
+        ? 'timeout (8s)'
+        : err.message;
+    onStep('⚠️', `Registro non disponibile: ${reason}`);
     return null;
   }
 }
 
-async function scrapeWebsite(url) {
-  if (!url) return {};
+async function scrapeWebsite(url, onStep) {
+  if (!url) {
+    onStep('ℹ️', 'Nessun sito web fornito — scraping saltato.');
+    return {};
+  }
   const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+  onStep('⏳', `Scraping sito: ${normalizedUrl}…`);
 
   try {
     const res = await axios.get(normalizedUrl, {
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; EU-Match/0.1; +https://github.com/eu-match)'
-      },
+      timeout: 12000,
+      signal: AbortSignal.timeout(12000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EU-Match/0.1)' },
       maxRedirects: 5
     });
 
     const $ = cheerio.load(res.data);
-
-    // Remove noise elements
     $('script, style, nav, footer, header, .cookie-banner, #cookie-banner').remove();
 
     const title = $('title').text().trim();
     const metaDesc = $('meta[name="description"]').attr('content') || '';
     const ogDesc = $('meta[property="og:description"]').attr('content') || '';
 
-    // Collect visible text from meaningful elements
     const bodyTexts = [];
     $('h1, h2, h3, p, li').each((_, el) => {
       const text = $(el).text().trim();
       if (text.length > 20) bodyTexts.push(text);
     });
 
-    const fullText = bodyTexts.slice(0, 40).join(' ');
     const description = metaDesc || ogDesc || title;
+    const rawText = bodyTexts.slice(0, 40).join(' ').substring(0, 3000);
 
-    return {
-      pageTitle: title,
-      description,
-      rawText: fullText.substring(0, 3000)
-    };
+    onStep('✅', `Sito analizzato: "${title || normalizedUrl}" — ${bodyTexts.length} blocchi di testo`);
+    return { pageTitle: title, description, rawText };
   } catch (err) {
-    console.warn('[startup-profiler] Web scraping failed:', err.message);
+    const reason = err.code === 'ECONNABORTED' || err.name === 'AbortError'
+      ? 'timeout (12s)' : err.message;
+    onStep('⚠️', `Scraping fallito: ${reason}`);
     return {};
   }
 }
 
-async function buildProfile(ragioneSociale, websiteUrl) {
+async function buildProfile(ragioneSociale, websiteUrl, onStep = () => {}) {
+  onStep('⏳', 'Avvio profilazione startup…');
+
   const [registerData, webData] = await Promise.all([
-    fetchBusinessRegister(ragioneSociale),
-    scrapeWebsite(websiteUrl)
+    fetchBusinessRegister(ragioneSociale, onStep),
+    scrapeWebsite(websiteUrl, onStep)
   ]);
+
+  onStep('💾', 'Salvataggio profilo in cache locale…');
 
   return {
     ragioneSociale,
@@ -98,3 +106,4 @@ async function buildProfile(ragioneSociale, websiteUrl) {
 }
 
 module.exports = { buildProfile, fetchBusinessRegister, scrapeWebsite };
+

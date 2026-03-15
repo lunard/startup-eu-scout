@@ -61,16 +61,29 @@ ipcMain.handle('storage:delete', async (_, { ragioneSociale }) => {
 
 // ─── IPC: Startup Profiler ─────────────────────────────────────────────────────
 
-ipcMain.handle('profiler:build', async (_, { ragioneSociale, url }) => {
-  // Check cache first
+ipcMain.handle('profiler:build', async (event, { ragioneSociale, url }) => {
+  const send = (icon, msg) => {
+    if (!event.sender.isDestroyed()) {
+      event.sender.send('profiler:progress', { icon, msg, ts: Date.now() });
+    }
+  };
+
+  send('⏳', 'Verifica cache locale…');
   const cached = storage.loadProfile(ragioneSociale);
   if (cached && cached.rawText) {
+    send('✅', 'Profilo caricato dalla cache.');
     return { ...cached, fromCache: true };
   }
 
-  const profile = await profiler.buildProfile(ragioneSociale, url);
-  storage.saveProfile(ragioneSociale, profile);
-  return { ...profile, fromCache: false };
+  try {
+    const profile = await profiler.buildProfile(ragioneSociale, url, send);
+    storage.saveProfile(ragioneSociale, profile);
+    send('✅', 'Profilazione completata e salvata.');
+    return { ...profile, fromCache: false };
+  } catch (err) {
+    send('❌', `Errore: ${err.message}`);
+    throw err;
+  }
 });
 
 // ─── IPC: Copilot CLI ──────────────────────────────────────────────────────────

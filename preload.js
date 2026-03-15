@@ -51,6 +51,14 @@ contextBridge.exposeInMainWorld('euMatch', {
   saveSettings: (settings) =>
     ipcRenderer.invoke('settings:save', settings),
 
+  // --- Profiler progress events ---
+  onProfileProgress: (callback) => {
+    ipcRenderer.on('profiler:progress', (_, data) => callback(data));
+  },
+  removeProfileProgressListener: () => {
+    ipcRenderer.removeAllListeners('profiler:progress');
+  },
+
   // --- Copilot streaming events ---
   onCopilotChunk: (callback) => {
     ipcRenderer.on('copilot:chunk', (_, text) => callback(text));

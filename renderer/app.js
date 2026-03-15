@@ -124,18 +124,45 @@ async function loadCachedProfile(ragioneSociale) {
 }
 
 async function buildProfile(ragioneSociale, url) {
+  const logEl = $('liveLog');
+  const startTs = Date.now();
+  let lineCount = 0;
+
+  function appendLog({ icon, msg }) {
+    const elapsed = ((Date.now() - startTs) / 1000).toFixed(1).padStart(5, '0');
+    const typeMap = { '✅': 'ok', '⚠️': 'warn', '❌': 'err', '💾': 'save', '⏳': 'info', 'ℹ️': 'info' };
+    const cls = typeMap[icon] || 'info';
+
+    // Remove cursor from last line
+    logEl.querySelectorAll('.log-cursor').forEach(c => c.remove());
+
+    const line = document.createElement('div');
+    line.className = `log-line ${cls}`;
+    line.innerHTML = `<span class="log-ts">${elapsed}s</span><span class="log-msg">${icon} ${escHtml(msg)}<span class="log-cursor"></span></span>`;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    lineCount++;
+  }
+
+  // Reset log
+  logEl.innerHTML = '';
+  $('profileLoadingText').textContent = 'Profilazione in corso…';
   show('profileLoading');
-  $('profileLoadingText').textContent = 'Ricerca nel registro imprese e scraping sito...';
   hide('profileResult');
+
+  window.euMatch.onProfileProgress(appendLog);
 
   try {
     const profile = await window.euMatch.buildProfile(ragioneSociale, url);
+    // Remove cursor on done
+    logEl.querySelectorAll('.log-cursor').forEach(c => c.remove());
     state.currentProfile = profile;
     renderProfileData(profile, profile.fromCache);
     await renderRecentProfiles();
   } catch (err) {
-    $('profileLoadingText').textContent = `Errore: ${err.message}`;
+    appendLog({ icon: '❌', msg: err.message });
   } finally {
+    window.euMatch.removeProfileProgressListener();
     hide('profileLoading');
   }
 }
