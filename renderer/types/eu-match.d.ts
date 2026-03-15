@@ -28,12 +28,14 @@ declare global {
     title: string;
     status: string;
     deadline: string;
+    openDate?: string;
     programme: string;
     budget: string;
     description: string;
     portalUrl: string;
     beneficiariesUrl?: string;
     matchingScore: number;
+    fitScore?: number;
   }
 
   interface ProgressEvent {
@@ -59,8 +61,8 @@ declare global {
     copilotCheckModel(): Promise<{ currentModel: string; isOpus: boolean | null; required: string }>;
     generateSchedaEU(profile: ProfileData): Promise<{ ok: boolean; schedaEU?: string; keywords?: string[]; error?: string }>;
     searchFunding(keywords: string[], options?: Record<string, unknown>): Promise<{ ok: boolean; total?: number; results?: SearchResult[]; isClosed?: boolean; error?: string }>;
-    analyzeBando(bando: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; error?: string }>;
-    loadBandoAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string }>>;
+    analyzeBando(bando: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; fitScore?: number; error?: string }>;
+    loadBandoAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string; fitScore?: number }>>;
     saveCredentials(username: string, password: string): Promise<{ ok: boolean; error?: string }>;
     loadCredentials(): Promise<{ ok: boolean; data?: { username: string } | null }>;
     clearCredentials(): Promise<{ ok: boolean }>;

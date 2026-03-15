@@ -352,7 +352,7 @@ async function searchBandi() {
     const statusKey = $('bandiStatus').value;
     const language = $('bandiLanguage').value;
     const programme = $('bandiProgramme').value;
-    appLog('api', `Ricerca bandi — stato: ${statusKey}, programma: ${programme}, lingua: ${language}`);
+    appLog('api', `Searching grants — status: ${statusKey}, programme: ${programme}, language: ${language}`);
     try {
         const res = await window.euMatch.searchFunding(state.keywords, {
             programmePeriod: period,
@@ -365,7 +365,7 @@ async function searchBandi() {
             $('bandiResults').innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📭</div>
-          ${res.error ? `Errore API: ${escHtml(res.error)}` : 'Nessun bando trovato per le keyword fornite.'}
+          ${res.error ? `API Error: ${escHtml(res.error)}` : 'No grants found for the provided keywords.'}
         </div>`;
             return;
         }
@@ -377,72 +377,80 @@ async function searchBandi() {
         renderBandi(res.results, res.total ?? 0, res.isClosed ?? false);
         $('bandiCount').textContent = res.results.length.toString();
         $('bandiCount').classList.remove('hidden');
+        if (ragioneSociale) {
+            autoAnalyzeAllBandi(res.results, ragioneSociale);
+        }
     }
     catch (err) {
         hide('bandiLoading');
         $('bandiResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
     }
 }
+function safeBandoId(id) {
+    return id.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
 function renderBandi(results, total, isClosed = false) {
-    const sorted = [...results].sort((a, b) => b.matchingScore - a.matchingScore);
     const cached = state.bandoAnalyses ?? {};
     const closedBanner = isClosed
         ? `<div class="alert alert-warning" style="margin-bottom:12px">
-         📁 Stai visualizzando bandi <strong>scaduti</strong>.
-         Per i bandi scaduti puoi vedere i partner che hanno partecipato tramite CORDIS.
+         📁 You are viewing <strong>expired</strong> grants.
+         For expired grants you can see the funded partners via CORDIS.
        </div>`
         : '';
     const header = `
     <div class="results-header">
       ${closedBanner}
-      <span class="results-count">Trovati <strong>${total}</strong> bandi — mostrati ${sorted.length} per rilevanza</span>
+      <span class="results-count">Found <strong>${total}</strong> grants — showing ${results.length} by deadline</span>
     </div>`;
-    const cards = sorted.map((b, i) => {
+    const cards = results.map((b) => {
         const score = b.matchingScore;
         const scoreClass = score >= 60 ? 'score-high' : score >= 30 ? 'score-mid' : 'score-low';
         const isExpired = isClosed;
-        const statusLabel = isExpired ? '📁 Scaduto' : (b.status || 'N/D');
+        const statusLabel = isExpired ? '📁 Expired' : (b.status || 'N/A');
         const statusClass = isExpired ? 'status-unknown'
-            : b.status.includes('31094501') ? 'status-open'
-                : b.status.includes('31094502') ? 'status-forthcoming' : 'status-unknown';
+            : b.status.includes('31094501') || b.status.includes('open') ? 'status-open'
+                : b.status.includes('31094502') || b.status.includes('forthcoming') ? 'status-forthcoming' : 'status-unknown';
         const hasCached = !!(cached[b.id]);
-        const btnLabel = hasCached ? '📋 Mostra Analisi Salvata' : '🤖 Analizza per la mia startup';
-        const savedBadge = hasCached ? '<span class="analysis-cached-badge">💾 Salvata</span>' : '';
+        const fitScore = cached[b.id]?.fitScore ?? 0;
+        const fitClass = fitScore >= 60 ? 'score-high' : fitScore >= 30 ? 'score-mid' : 'score-low';
+        const safeId = safeBandoId(b.id);
         const beneficiariesBtn = isExpired && b.beneficiariesUrl
             ? `<a class="btn btn-secondary btn-sm" data-href="${escHtml(b.beneficiariesUrl)}" style="text-decoration:none">
-           👥 Vedi Partner su CORDIS
+           👥 View Partners on CORDIS
          </a>`
             : '';
         const analysisHtml = hasCached
-            ? `<div class="bando-analysis" id="bando-analysis-${i}" data-done="1">
+            ? `<div class="analysis-area" id="bando-analysis-${safeId}">
            <div class="analysis-content md-preview">${window.marked ? window.marked.parse(cached[b.id].analysis) : escHtml(cached[b.id].analysis)}</div>
-           <div class="analysis-footer">💾 Salvata il ${escHtml(fmtDate(cached[b.id].savedAt))}</div>
+           <div class="analysis-footer">💾 Saved on ${escHtml(fmtDate(cached[b.id].savedAt))}</div>
          </div>`
-            : `<div class="bando-analysis hidden" id="bando-analysis-${i}"></div>`;
+            : `<div class="analysis-area" id="bando-analysis-${safeId}">
+           <div class="analysis-loading"><div class="spinner"></div><span>🔄 Copilot analysis in progress…</span></div>
+         </div>`;
         return `
-      <div class="bando-card${isExpired ? ' bando-expired' : ''}" id="bando-card-${i}">
+      <div class="bando-card${isExpired ? ' bando-expired' : ''}" data-bando-id="${escHtml(b.id)}" data-fitscore="${hasCached ? fitScore : 0}">
         <div style="flex:1;min-width:0">
           <div class="bando-title">${escHtml(b.title)}</div>
           <div class="bando-meta">
             <span>🏛️ ${escHtml(b.programme || 'N/D')}</span>
-            ${b.deadline ? `<span>📅 ${escHtml(fmtDate(b.deadline))}</span>` : ''}
+            ${b.deadline ? `<span>📅 Deadline: ${escHtml(fmtDate(b.deadline))}</span>` : ''}
             ${b.budget ? `<span>💰 ${escHtml(b.budget)}</span>` : ''}
             <span class="status-badge ${statusClass}">${escHtml(statusLabel)}</span>
-            ${savedBadge}
           </div>
           ${b.description ? `<div class="bando-desc">${escHtml(b.description)}…</div>` : ''}
           <div class="bando-actions">
             <a class="btn btn-secondary btn-sm" data-href="${escHtml(b.portalUrl)}" style="text-decoration:none">
-              🔗 Apri nel Portale EU
+              🔗 Open in EU Portal
             </a>
             ${beneficiariesBtn}
-            <button class="btn btn-primary btn-sm btn-analizza" data-idx="${i}">${btnLabel}</button>
           </div>
           ${analysisHtml}
         </div>
         <div class="bando-score-box">
           <div class="score-circle ${scoreClass}">${score}%</div>
           <div class="score-label">Match<br>Score</div>
+          <div class="score-circle ${hasCached ? fitClass : 'score-pending'}" style="margin-top:8px">${hasCached ? `${fitScore}%` : '?'}</div>
+          <div class="score-label">Partner<br>Score</div>
         </div>
       </div>`;
     }).join('');
@@ -453,45 +461,57 @@ function renderBandi(results, total, isClosed = false) {
             window.open(a.dataset.href, '_blank');
         });
     });
-    $('bandiResults').querySelectorAll('.btn-analizza').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const idx = parseInt(btn.dataset.idx ?? '0');
-            const bando = sorted[idx];
-            runBandoAnalysis(btn, idx, bando);
-        });
-    });
 }
-async function runBandoAnalysis(btn, idx, bando) {
-    const analysisEl = $(`bando-analysis-${idx}`);
-    // Cached — toggle visibility
-    if (analysisEl.dataset.done === '1') {
-        analysisEl.classList.toggle('hidden');
-        btn.textContent = analysisEl.classList.contains('hidden') ? '📋 Mostra Analisi Salvata' : '📋 Nascondi Analisi';
-        return;
+async function autoAnalyzeAllBandi(bandi, ragioneSociale) {
+    const BATCH = 3;
+    const toAnalyze = bandi.filter(b => !state.bandoAnalyses?.[b.id]);
+    appLog('copilot', `Auto-analysis: ${toAnalyze.length} grants to analyse (${bandi.length - toAnalyze.length} from cache)`);
+    for (let i = 0; i < toAnalyze.length; i += BATCH) {
+        const batch = toAnalyze.slice(i, i + BATCH);
+        await Promise.allSettled(batch.map(b => analyzeOneBando(b, ragioneSociale)));
+        resortByFitScore();
     }
-    const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
-    btn.disabled = true;
-    btn.textContent = '⏳ Analisi in corso…';
-    show(`bando-analysis-${idx}`);
-    analysisEl.innerHTML = '<div class="analysis-loading"><div class="spinner"></div><span>Copilot sta analizzando il bando…</span></div>';
-    appLog('copilot', `Analisi bando: "${bando.title.substring(0, 60)}…"`);
+    if (toAnalyze.length > 0)
+        appLog('success', 'Grant auto-analysis completed');
+}
+async function analyzeOneBando(bando, ragioneSociale) {
+    const safeId = safeBandoId(bando.id);
+    const analysisEl = document.getElementById(`bando-analysis-${safeId}`);
+    if (!analysisEl)
+        return;
     const res = await window.euMatch.analyzeBando(bando, ragioneSociale);
     if (res.ok && res.analysis) {
+        const fitScore = res.fitScore ?? 50;
         const html = window.marked ? window.marked.parse(res.analysis) : escHtml(res.analysis);
         analysisEl.innerHTML = `
       <div class="analysis-content md-preview">${html}</div>
-      <div class="analysis-footer">💾 Salvata ora — ricaricata automaticamente per questa startup</div>`;
-        analysisEl.dataset.done = '1';
-        state.bandoAnalyses[bando.id] = { analysis: res.analysis, savedAt: new Date().toISOString() };
-        btn.textContent = '📋 Nascondi Analisi';
-        appLog('success', `Analisi bando salvata: ${bando.id}`);
+      <div class="analysis-footer">💾 Saved on ${escHtml(fmtDate(new Date().toISOString()))}</div>`;
+        const card = document.querySelector(`[data-bando-id="${escHtml(bando.id)}"]`);
+        if (card) {
+            card.dataset.fitscore = String(fitScore);
+            const circles = card.querySelectorAll('.score-circle');
+            const partnerCircle = circles[circles.length - 1];
+            if (partnerCircle) {
+                const cls = fitScore >= 60 ? 'score-high' : fitScore >= 30 ? 'score-mid' : 'score-low';
+                partnerCircle.className = `score-circle ${cls}`;
+                partnerCircle.textContent = `${fitScore}%`;
+            }
+        }
+        state.bandoAnalyses[bando.id] = { analysis: res.analysis, savedAt: new Date().toISOString(), fitScore };
     }
     else {
-        analysisEl.innerHTML = `<div class="alert alert-error">❌ ${escHtml(res.error ?? 'Errore sconosciuto')}</div>`;
-        btn.textContent = '🤖 Riprova Analisi';
-        appLog('error', `Errore analisi bando: ${res.error}`);
+        analysisEl.innerHTML = `<div class="alert alert-error">❌ ${escHtml(res.error ?? 'Errore')}</div>`;
     }
-    btn.disabled = false;
+}
+function resortByFitScore() {
+    const container = $('bandiResults');
+    const header = container.querySelector('.results-header');
+    const cards = [...container.querySelectorAll('.bando-card')];
+    cards.sort((a, b) => parseInt(b.dataset.fitscore ?? '0') - parseInt(a.dataset.fitscore ?? '0'));
+    container.innerHTML = '';
+    if (header)
+        container.appendChild(header);
+    cards.forEach(c => container.appendChild(c));
 }
 // ─── Settings ─────────────────────────────────────────────────────────────────
 async function loadSettings() {

@@ -191,7 +191,11 @@ URL: ${bando.portalUrl}
 4. **Durata e tempistiche** — Stima di durata progetto e scadenza candidatura
 5. **Informazioni chiave** — 3-5 bullet point con i requisiti/vincoli più importanti
 
-Rispondi SOLO con l'analisi strutturata in Markdown, senza preamboli.`;
+Rispondi SOLO con l'analisi strutturata in Markdown, senza preamboli.
+
+Alla fine dell'analisi, su una riga separata, scrivi ESATTAMENTE questa riga:
+PUNTEGGIO_PARTNER: XX
+(dove XX è un numero intero da 0 a 100 che indica quanto questa startup è adatta come partner per questo bando)`;
 }
 
 export async function analyzeBando(
@@ -199,7 +203,11 @@ export async function analyzeBando(
   schedaEU: string,
   bando: SearchResult,
   settings: AppSettings
-): Promise<string> {
+): Promise<{ analysis: string; fitScore: number }> {
   const bin = resolveCopilotBin(settings?.copilotPath);
-  return spawnPrompt(bin, buildBandoAnalysisPrompt(profile, schedaEU, bando), REQUIRED_MODEL, null);
+  const raw = await spawnPrompt(bin, buildBandoAnalysisPrompt(profile, schedaEU, bando), REQUIRED_MODEL, null);
+  const match = raw.match(/PUNTEGGIO_PARTNER:\s*(\d+)/);
+  const fitScore = match ? Math.min(100, parseInt(match[1])) : 50;
+  const analysis = raw.replace(/\nPUNTEGGIO_PARTNER:\s*\d+\s*$/, '').trimEnd();
+  return { analysis, fitScore };
 }

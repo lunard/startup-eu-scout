@@ -38,12 +38,14 @@ export interface SearchResult {
   title: string;
   status: string;
   deadline: string;
+  openDate?: string;
   programme: string;
   budget: string;
   description: string;
   portalUrl: string;
   beneficiariesUrl?: string;
   matchingScore: number;
+  fitScore?: number;
 }
 
 export interface SearchResponse {

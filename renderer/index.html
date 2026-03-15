@@ -29,7 +29,7 @@
     <button class="tab-btn active" data-tab="profile">🏢 Profilo Startup</button>
     <button class="tab-btn" data-tab="scheda">🇪🇺 Scheda EU</button>
     <button class="tab-btn" data-tab="bandi">
-      📋 Bandi
+      📋 Grants
       <span class="tab-badge hidden" id="bandiCount">0</span>
     </button>
     <button class="tab-btn" data-tab="settings">⚙️ Impostazioni</button>
@@ -140,12 +140,12 @@
       <div class="card hidden" id="keywordsCard">
         <div class="card-title">🏷️ Keywords EU Estratte</div>
         <p style="font-size:13px; color: var(--text-muted); margin-bottom:12px;">
-          Queste keyword verranno usate per cercare i bandi EU più rilevanti.
+          Queste keyword verranno usate per cercare i grant EU più rilevanti.
         </p>
         <div class="keywords-list" id="keywordsList"></div>
         <div class="btn-group" style="margin-top:20px">
           <button class="btn btn-primary" id="btnCercaBandi">
-            <span>📋</span> Cerca Bandi EU
+            <span>📋</span> Search EU Grants
           </button>
         </div>
       </div>
@@ -154,7 +154,7 @@
     <!-- ══ TAB: BANDI ════════════════════════════════════ -->
     <section class="tab-panel" id="tab-bandi">
       <div class="card">
-        <div class="card-title">📋 Ricerca Bandi EU</div>
+        <div class="card-title">📋 EU Grant Search</div>
         <div class="form-row">
           <div class="form-group">
             <label>Periodo Finanziario</label>
@@ -164,18 +164,18 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Stato Bando</label>
+            <label>Grant Status</label>
             <select id="bandiStatus">
-              <option value="open-forthcoming" selected>✅ Aperti + In Arrivo</option>
-              <option value="open">🟢 Solo Aperti</option>
-              <option value="forthcoming">🔜 Solo In Arrivo</option>
-              <option value="closed">📁 Solo Scaduti</option>
+              <option value="open-forthcoming" selected>✅ Open + Forthcoming</option>
+              <option value="open">🟢 Open Only</option>
+              <option value="forthcoming">🔜 Forthcoming Only</option>
+              <option value="closed">📁 Expired Only</option>
             </select>
           </div>
           <div class="form-group">
             <label>Programma</label>
             <select id="bandiProgramme">
-              <option value="all" selected>Tutti i programmi</option>
+              <option value="all" selected>All Programmes</option>
               <option value="HORIZON">Horizon Europe</option>
               <option value="EIC">EIC Accelerator</option>
               <option value="DIGITAL">Digital Europe</option>
@@ -187,7 +187,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Lingua preferita</label>
+            <label>Preferred Language</label>
             <select id="bandiLanguage">
               <option value="en" selected>🇬🇧 English</option>
               <option value="it">🇮🇹 Italiano</option>
@@ -202,18 +202,18 @@
         </div>
         <div class="btn-group">
           <button class="btn btn-primary" id="btnSearch">
-            <span>🔎</span> Aggiorna Ricerca
+            <span>🔎</span> Refresh Search
           </button>
         </div>
       </div>
 
       <div class="loading-row hidden" id="bandiLoading">
         <div class="spinner"></div>
-        <span>Interrogazione EU Funding &amp; Tenders API...</span>
+        <span>Querying EU Funding &amp; Tenders API...</span>
       </div>
 
       <div class="alert alert-info hidden" id="bandiEmpty">
-        Genera prima la Scheda EU per ottenere le keyword necessarie alla ricerca.
+        Generate the EU Profile first to get the keywords needed for the search.
       </div>
 
       <div id="bandiResults"></div>

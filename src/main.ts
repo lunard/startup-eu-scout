@@ -182,10 +182,10 @@ ipcMain.handle('copilot:analyzeBando', async (_event, { bando, ragioneSociale }:
   const profile = storage.loadProfile(ragioneSociale);
   const schedaEU = profile?.schedaEU ?? '';
   try {
-    const analysis = await copilot.analyzeBando(profile, schedaEU, bando, settings);
-    storage.saveBandoAnalysis(ragioneSociale, bando.id, analysis);
+    const { analysis, fitScore } = await copilot.analyzeBando(profile, schedaEU, bando, settings);
+    storage.saveBandoAnalysis(ragioneSociale, bando.id, analysis, fitScore);
     sendLog('success', `Analisi bando salvata: ${bando.id}`);
-    return { ok: true, analysis };
+    return { ok: true, analysis, fitScore };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     sendLog('error', `Errore analisi bando: ${message}`);
