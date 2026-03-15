@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EU Startup Nexus</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <nav class="sidebar">
+      <div class="logo">
+        <span class="logo-icon">🇪🇺</span>
+        <span class="logo-text">EU Startup Nexus</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#" data-view="profile" class="nav-link active">🏢 Profile</a></li>
+        <li><a href="#" data-view="grants" class="nav-link">🔍 Find Grants</a></li>
+        <li><a href="#" data-view="settings" class="nav-link">⚙️ Settings</a></li>
+      </ul>
+    </nav>
+
+    <main class="content">
+      <!-- Profile View -->
+      <section id="view-profile" class="view active">
+        <h1>Startup Profile</h1>
+        <p class="subtitle">Enter your startup details to generate a European Summary Card.</p>
+
+        <form id="profile-form" class="card">
+          <div class="form-group">
+            <label for="business-name">Registered Business Name *</label>
+            <input
+              type="text"
+              id="business-name"
+              name="businessName"
+              placeholder="e.g. Acme Technologies GmbH"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="profile-url">Company Website URL</label>
+            <input
+              type="url"
+              id="profile-url"
+              name="profileUrl"
+              placeholder="https://www.example.com"
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="fetch-profile-btn">
+            <span class="btn-text">Fetch Profile</span>
+            <span class="btn-spinner hidden">⟳</span>
+          </button>
+        </form>
+
+        <div id="profile-result" class="card hidden">
+          <h2>Company Profile</h2>
+          <div id="profile-data"></div>
+
+          <button id="generate-card-btn" class="btn btn-secondary">
+            <span class="btn-text">Generate European Summary Card via Copilot</span>
+            <span class="btn-spinner hidden">⟳</span>
+          </button>
+        </div>
+
+        <div id="summary-card-result" class="card hidden">
+          <h2>🤖 European Summary Card</h2>
+          <div id="summary-card-data"></div>
+
+          <button id="search-grants-from-profile-btn" class="btn btn-primary">
+            🔍 Search for Matching Grants
+          </button>
+        </div>
+      </section>
+
+      <!-- Grants View -->
+      <section id="view-grants" class="view hidden">
+        <h1>Grant Opportunities</h1>
+        <p class="subtitle">EU Funding & Tenders Portal results matched to your profile.</p>
+
+        <div id="grants-list" class="grants-list">
+          <div class="empty-state">
+            <p>Generate a European Summary Card from your profile first, then search for grants.</p>
+            <button class="btn btn-secondary" data-nav="profile">Go to Profile</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings View -->
+      <section id="view-settings" class="view hidden">
+        <h1>Settings</h1>
+        <p class="subtitle">Manage your EU Login credentials (stored with OS-native encryption).</p>
+
+        <div class="card">
+          <h2>EU Login Credentials</h2>
+          <p class="info-text">
+            Your password is encrypted using your operating system's secure storage
+            (Keychain on macOS, DPAPI on Windows). It is never stored in plain text.
+          </p>
+
+          <form id="eu-login-form">
+            <div class="form-group">
+              <label for="eu-email">EU Login Email</label>
+              <input
+                type="email"
+                id="eu-email"
+                name="euEmail"
+                placeholder="name@example.eu"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="eu-password">Password</label>
+              <input
+                type="password"
+                id="eu-password"
+                name="euPassword"
+                placeholder="Enter your EU Login password"
+              />
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save Credentials</button>
+              <button type="button" id="clear-credentials-btn" class="btn btn-danger">
+                Clear Credentials
+              </button>
+            </div>
+          </form>
+
+          <div id="credentials-status" class="status-badge hidden"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
