@@ -62,9 +62,10 @@ async function runHealthCheck() {
 
     const model = await window.euMatch.copilotCheckModel();
     dot.className = 'status-dot ok';
-    txt.textContent = `Copilot ${health.version} — ${model.currentModel}`;
+    const modelLabel = model.currentModel && model.currentModel !== 'unknown' ? ` — ${model.currentModel}` : '';
+    txt.textContent = `Copilot ${health.version}${modelLabel}`;
     setAlert('copilotHealthStatus', 'success',
-      `✅ Copilot CLI rilevato (${health.version}). Modello attivo: <strong>${model.currentModel}</strong>`);
+      `✅ Copilot CLI rilevato (v${health.version}). Modello attivo: <strong>${model.currentModel !== 'unknown' ? model.currentModel : 'non rilevato'}</strong>`);
 
     if (model.isOpus === false) {
       show('modelModal');

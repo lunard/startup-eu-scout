@@ -7,6 +7,13 @@ const os = require('os');
 const OPUS_MODEL_IDS = ['claude-opus-4-6', 'claude-opus-4.6', 'opus-4-6', 'opus'];
 const REQUIRED_MODEL = 'claude-opus-4-6';
 
+function parseVersion(raw) {
+  // Extract only the version number/tag from the first line, drop update notices
+  const first = raw.split('\n')[0].trim();
+  const match = first.match(/[\d]+\.[\d]+\.[\d]+[\w.-]*/);
+  return match ? match[0] : first.replace(/run .* to check for updates\.?/gi, '').trim() || 'OK';
+}
+
 function resolveCopilotPath(customPath) {
   if (customPath) return customPath;
 
@@ -58,12 +65,12 @@ async function healthCheck(customPath) {
   try {
     // Try gh copilot first
     const res = await runCommand(bin, ['copilot', '--version'], { timeout: 8000 });
-    return { ok: true, version: res.stdout.trim(), mode: 'gh-extension' };
+    return { ok: true, version: parseVersion(res.stdout), mode: 'gh-extension' };
   } catch {
     try {
       // Fallback: standalone copilot binary
       const res = await runCommand('copilot', ['--version'], { timeout: 8000 });
-      return { ok: true, version: res.stdout.trim(), mode: 'standalone' };
+      return { ok: true, version: parseVersion(res.stdout), mode: 'standalone' };
     } catch (err) {
       return { ok: false, error: err.message };
     }
