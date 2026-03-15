@@ -16,10 +16,10 @@ let mainWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1792,
-    height: 800,
-    minWidth: 1344,
-    minHeight: 600,
+    width: 1254,
+    height: 1040,
+    minWidth: 941,
+    minHeight: 780,
     title: 'EU-Match — Scouting Finanziamenti Europei',
     icon: path.join(__dirname, 'assets', process.platform === 'darwin' ? 'icon.icns' : 'icon.png'),
     webPreferences: {
