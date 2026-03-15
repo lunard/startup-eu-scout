@@ -458,6 +458,18 @@ async function searchGrants(): Promise<void> {
 
     appLog('success', `Grant details extracted for ${enriched.length} grants.`);
 
+    // ── Exclude grants with a known past deadline (post-crawl, most accurate data) ──
+    const now = new Date();
+    const activeGrants = isClosed ? enriched : enriched.filter(g => {
+      if (!g.deadline) return true;           // unknown deadline → keep
+      const d = new Date(g.deadline);
+      return isNaN(d.getTime()) || d >= now;  // unparseable or future → keep
+    });
+    const expiredCount = enriched.length - activeGrants.length;
+    if (!isClosed && expiredCount > 0) {
+      appLog('info', `Excluded ${expiredCount} grant(s) with past deadlines.`);
+    }
+
     // ── Type of Action filter (applied post-crawl once typeOfAction is known) ──
     // EU API may return full text ("Research and Innovation Action") OR acronym ("RIA").
     // Regex covers both forms; IA is anchored to avoid matching inside "RIA"/"PRIA" etc.
@@ -471,31 +483,23 @@ async function searchGrants(): Promise<void> {
     };
     const typeRegex = TYPE_MATCH[typeOfAction.toUpperCase()] ?? null;
 
-    // Debug: log typeOfAction distribution to help diagnose empty values
-    if (typeOfAction !== 'all') {
-      const dist = enriched.reduce<Record<string, number>>((acc, g) => {
-        const t = g.typeOfAction || '(empty)';
-        acc[t] = (acc[t] ?? 0) + 1;
-        return acc;
-      }, {});
-      appLog('info', `typeOfAction distribution: ${JSON.stringify(dist)}`);
-    }
-
     const typeFiltered = (typeOfAction === 'all' || !typeRegex)
-      ? enriched
-      : enriched.filter(g => g.typeOfAction && typeRegex.test(g.typeOfAction));
+      ? activeGrants
+      : activeGrants.filter(g => g.typeOfAction && typeRegex.test(g.typeOfAction));
 
     if (typeFiltered.length === 0) {
       hide('grantsLoading');
       $('grantResults').innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📭</div>
-          No <strong>${escHtml(typeOfAction)}</strong> grants found matching your keywords. Try "All Types".
+          ${typeOfAction !== 'all'
+            ? `No <strong>${escHtml(typeOfAction)}</strong> grants found matching your keywords. Try "All Types".`
+            : 'No active grants found matching your keywords.'}
         </div>`;
       return;
     }
     if (typeOfAction !== 'all') {
-      appLog('info', `Type filter applied: ${typeOfAction} — ${typeFiltered.length} of ${enriched.length} grants match.`);
+      appLog('info', `Type filter applied: ${typeOfAction} — ${typeFiltered.length} of ${activeGrants.length} grants match.`);
     }
 
     // ── Closed grants: show info + partner list, no Copilot ───────────
