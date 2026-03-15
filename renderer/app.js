@@ -118,6 +118,7 @@ $('btnProfila').addEventListener('click', async () => {
 async function loadCachedProfile(ragioneSociale) {
   const cached = await window.euMatch.loadProfile(ragioneSociale);
   if (cached) {
+    $('websiteUrl').value = cached.url || '';
     state.currentProfile = cached;
     renderProfileData(cached, true);
   }

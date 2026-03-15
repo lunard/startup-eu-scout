@@ -20,6 +20,8 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+.hidden { display: none !important; }
+
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -312,7 +314,6 @@ body {
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
 }
-.modal-overlay.hidden { display: none; }
 .modal {
   background: var(--surface);
   border-radius: 14px;
