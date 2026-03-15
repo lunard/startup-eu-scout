@@ -3,160 +3,133 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 
-const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5', 'opus'];
+const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5'];
 const REQUIRED_MODEL = 'claude-opus-4.6';
+const CONFIG_PATH = path.join(os.homedir(), '.copilot', 'config.json');
+
+function stripAnsi(str) {
+  return str.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '').replace(/\r/g, '');
+}
 
 function parseVersion(raw) {
-  // Extract only the version number/tag from the first line, drop update notices
-  const first = raw.split('\n')[0].trim();
-  const match = first.match(/[\d]+\.[\d]+\.[\d]+[\w.-]*/);
+  const first = stripAnsi(raw).split('\n')[0].trim();
+  const match = first.match(/\d+\.\d+\.\d+[\w.-]*/);
   return match ? match[0] : first.replace(/run .* to check for updates\.?/gi, '').trim() || 'OK';
 }
 
-function resolveCopilotPath(customPath) {
+function resolveCopilotBin(customPath) {
   if (customPath) return customPath;
-
-  // Common install locations
   const candidates = [
-    'gh',                                                           // gh copilot extension
-    path.join(os.homedir(), '.copilot', 'bin', 'copilot'),
+    '/opt/homebrew/bin/copilot',
     path.join(os.homedir(), '.local', 'bin', 'copilot'),
-    '/usr/local/bin/gh',
-    '/opt/homebrew/bin/gh'
+    '/usr/local/bin/copilot',
+    'copilot'
   ];
-
-  return candidates[0]; // Default to 'gh', resolved by PATH
+  return candidates.find(p => {
+    try { fs.accessSync(p); return true; } catch { return false; }
+  }) || 'copilot';
 }
 
-function runCommand(bin, args, { timeout = 30000 } = {}) {
+function runCommand(bin, args, opts) {
+  const timeout = (opts && opts.timeout) || 10000;
   return new Promise((resolve, reject) => {
     const proc = spawn(bin, args, { shell: false });
-    let stdout = '';
-    let stderr = '';
-
+    let stdout = '', stderr = '';
     const timer = setTimeout(() => {
-      proc.kill();
-      reject(new Error(`Comando timeout (${timeout}ms): ${bin} ${args.join(' ')}`));
+      proc.stdin.destroy();
+      proc.stdout.destroy();
+      reject(new Error('Timeout'));
     }, timeout);
-
     proc.stdout.on('data', d => { stdout += d.toString(); });
     proc.stderr.on('data', d => { stderr += d.toString(); });
-
     proc.on('close', code => {
       clearTimeout(timer);
-      if (code === 0) {
-        resolve({ stdout, stderr, code });
-      } else {
-        reject(new Error(`Errore (exit ${code}): ${stderr || stdout}`));
-      }
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new Error(`exit ${code}: ${(stderr || stdout).trim().substring(0, 200)}`));
     });
-
-    proc.on('error', err => {
-      clearTimeout(timer);
-      reject(new Error(`Impossibile eseguire '${bin}': ${err.message}`));
-    });
+    proc.on('error', err => { clearTimeout(timer); reject(new Error(err.message)); });
   });
 }
 
-async function healthCheck(customPath) {
-  const bin = resolveCopilotPath(customPath);
+// ─── Health Check ──────────────────────────────────────────────────────────────
 
+async function healthCheck(customPath) {
+  const bin = resolveCopilotBin(customPath);
   try {
-    // Try gh copilot first
-    const res = await runCommand(bin, ['copilot', '--version'], { timeout: 8000 });
-    return { ok: true, version: parseVersion(res.stdout), mode: 'gh-extension' };
-  } catch {
-    try {
-      // Fallback: standalone copilot binary
-      const res = await runCommand('copilot', ['--version'], { timeout: 8000 });
-      return { ok: true, version: parseVersion(res.stdout), mode: 'standalone' };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
+    const { stdout } = await runCommand(bin, ['--version'], { timeout: 8000 });
+    return { ok: true, version: parseVersion(stdout), bin };
+  } catch (err) {
+    return { ok: false, error: err.message };
   }
 }
 
-async function checkModel(customPath) {
-  const bin = resolveCopilotPath(customPath);
+// ─── Model Check (reads ~/.copilot/config.json) ────────────────────────────────
 
+async function checkModel(customPath) {
   try {
-    const res = await runCommand(bin, ['copilot', 'config', 'get', 'model'], { timeout: 8000 });
-    const model = res.stdout.trim().toLowerCase();
-    const isOpus = OPUS_MODEL_IDS.some(id => model.includes(id));
-    return { currentModel: res.stdout.trim(), isOpus, required: REQUIRED_MODEL };
+    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    const currentModel = config.model || 'unknown';
+    const isOpus = OPUS_MODEL_IDS.some(id => currentModel.toLowerCase() === id.toLowerCase());
+    return { currentModel, isOpus, required: REQUIRED_MODEL };
   } catch {
-    // Model config might not be queryable this way; return unknown
     return { currentModel: 'unknown', isOpus: null, required: REQUIRED_MODEL };
   }
 }
 
-function sendPromptStreaming(bin, prompt, onChunk) {
+// ─── Prompt Runner ─────────────────────────────────────────────────────────────
+// copilot --prompt "..." --model claude-opus-4.6 --allow-all-tools --output-format text
+// --allow-all-tools is required for non-interactive mode (no stdin approval prompts)
+
+function spawnPrompt(bin, prompt, model, onChunk) {
   return new Promise((resolve, reject) => {
-    const isGh = bin === 'gh' || bin.endsWith('/gh');
-    const args = isGh
-      ? ['copilot', 'suggest', '--target', 'shell', '--model', REQUIRED_MODEL]
-      : ['--model', REQUIRED_MODEL];
-
-    const proc = spawn(bin, args, { shell: false });
-    let fullOutput = '';
-    let stderr = '';
-
-    proc.stdin.write(prompt);
-    proc.stdin.end();
-
+    const args = [
+      '--prompt', prompt,
+      '--model', model,
+      '--allow-all-tools',
+      '--output-format', 'text'
+    ];
+    const proc = spawn(bin, args, {
+      shell: false,
+      env: { ...process.env, NO_COLOR: '1', TERM: 'dumb' }
+    });
+    let fullOutput = '', stderr = '';
     proc.stdout.on('data', chunk => {
-      const text = chunk.toString();
+      const text = stripAnsi(chunk.toString());
       fullOutput += text;
       if (onChunk) onChunk(text);
     });
-
-    proc.stderr.on('data', d => { stderr += d.toString(); });
-
+    proc.stderr.on('data', d => { stderr += stripAnsi(d.toString()); });
     proc.on('close', code => {
-      if (code === 0 || fullOutput.length > 0) {
-        resolve(fullOutput);
-      } else {
-        reject(new Error(`Copilot exit ${code}: ${stderr}`));
-      }
+      const out = fullOutput.trim();
+      if (out.length > 0) resolve(out);
+      else reject(new Error(`Copilot exit ${code}: ${stderr.trim().substring(0, 300) || 'nessun output'}`));
     });
-
-    proc.on('error', err => reject(new Error(`Spawn error: ${err.message}`)));
+    proc.on('error', err => reject(new Error(`Impossibile avviare copilot: ${err.message}`)));
   });
 }
 
-async function generateSchedaEU(rawProfile, settings = {}) {
-  const prompt = buildSchedaPrompt(rawProfile);
-  const bin = resolveCopilotPath(settings.copilotPath);
+// ─── Public API ────────────────────────────────────────────────────────────────
 
-  const chunks = [];
-  const onChunk = text => chunks.push(text);
-
-  const result = await sendPromptStreaming(bin, prompt, onChunk);
-  return result;
+async function generateSchedaEU(rawProfile, settings, onChunk) {
+  const bin = resolveCopilotBin(settings && settings.copilotPath);
+  return spawnPrompt(bin, buildSchedaPrompt(rawProfile), REQUIRED_MODEL, onChunk);
 }
 
-async function extractKeywords(schedaEU, settings = {}) {
-  const prompt = buildKeywordsPrompt(schedaEU);
-  const bin = resolveCopilotPath(settings.copilotPath);
-
-  const result = await sendPromptStreaming(bin, prompt, null);
-
-  // Parse JSON array from output
+async function extractKeywords(schedaEU, settings) {
+  const bin = resolveCopilotBin(settings && settings.copilotPath);
+  const result = await spawnPrompt(bin, buildKeywordsPrompt(schedaEU), REQUIRED_MODEL, null);
   const match = result.match(/\[[\s\S]*?\]/);
-  if (match) {
-    try {
-      return JSON.parse(match[0]);
-    } catch { /* fall through */ }
-  }
-
-  // Fallback: split by commas or newlines
+  if (match) { try { return JSON.parse(match[0]); } catch {} }
   return result
     .split(/[\n,]+/)
-    .map(s => s.trim().replace(/^["'\-•*]+|["']+$/g, ''))
+    .map(s => s.trim().replace(/^["'\-\u2022*\d.]+|["']+$/g, ''))
     .filter(s => s.length > 2 && s.length < 60)
     .slice(0, 15);
 }
+
+// ─── Prompts ───────────────────────────────────────────────────────────────────
 
 function buildSchedaPrompt(profile) {
   return `Sei un esperto di finanziamenti europei. Analizza il seguente profilo aziendale e genera una "Scheda Riassuntiva Europea" strutturata in italiano.
@@ -178,14 +151,13 @@ Testo estratto dal sito:
 ${profile.rawText || 'N/D'}
 ---
 
-Rispondi in italiano con la scheda strutturata.`;
+Rispondi SOLO con la scheda strutturata, senza preamboli.`;
 }
 
 function buildKeywordsPrompt(schedaEU) {
-  return `Dalla seguente scheda aziendale europea, estrai le 10-15 keyword più rilevanti per cercare bandi EU sul portale Funding & Tenders.
+  return `Dalla seguente scheda aziendale europea, estrai le 10-15 keyword piu rilevanti per cercare bandi EU sul portale Funding & Tenders.
 Restituisci SOLO un JSON array di stringhe in inglese, senza altri testi.
-
-Esempio output: ["artificial intelligence", "green technology", "SME", "digitalization"]
+Esempio: ["artificial intelligence", "green technology", "SME", "digitalization"]
 
 SCHEDA:
 ${schedaEU}
@@ -193,4 +165,4 @@ ${schedaEU}
 OUTPUT:`;
 }
 
-module.exports = { healthCheck, checkModel, generateSchedaEU, extractKeywords, resolveCopilotPath };
+module.exports = { healthCheck, checkModel, generateSchedaEU, extractKeywords };

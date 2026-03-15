@@ -123,7 +123,7 @@ ipcMain.handle('copilot:generateScheda', async (event, profile) => {
   };
 
   try {
-    const scheda = await copilot.generateSchedaEU(profile, settings);
+    const scheda = await copilot.generateSchedaEU(profile, settings, onChunk);
     const keywords = await copilot.extractKeywords(scheda, settings);
 
     // Persist scheda + keywords into profile
