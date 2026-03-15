@@ -240,7 +240,7 @@ async function generateScheda(profile) {
   show('schedaContent');
   contentEl.classList.add('streaming');
 
-  // Stream chunks into the UI
+  // Stream chunks into the UI as raw text
   window.euMatch.onCopilotChunk((text) => {
     contentEl.textContent += text;
     contentEl.scrollTop = contentEl.scrollHeight;
@@ -270,7 +270,9 @@ async function generateScheda(profile) {
 
 function renderScheda(schedaText, keywords) {
   const contentEl = $('schedaContent');
-  contentEl.textContent = schedaText;
+  // Render as Markdown HTML
+  contentEl.innerHTML = window.marked ? marked.parse(schedaText) : schedaText.replace(/\n/g, '<br>');
+  contentEl.classList.add('md-preview');
   show('schedaContent');
   hide('schedaInfo');
 
