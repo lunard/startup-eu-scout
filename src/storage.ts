@@ -1,11 +1,6 @@
 import Store from 'electron-store';
 import type { ProfileData, AppSettings } from './types';
 
-interface StoreSchema {
-  profiles: Record<string, ProfileData>;
-  settings: AppSettings;
-}
-
 const profileSchema = {
   profiles: {
     type: 'object',
@@ -36,7 +31,9 @@ const profileSchema = {
   }
 };
 
-const store = new Store<StoreSchema>({ schema: profileSchema as Store.Schema<StoreSchema>, name: 'eu-match-data' });
+// Use a loose type to allow dot-notation string keys for nested access (e.g. 'profiles.key')
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const store = new Store<Record<string, any>>({ schema: profileSchema as any, name: 'eu-match-data' });
 
 function profileKey(ragioneSociale: string): string {
   return ragioneSociale.trim().toLowerCase().replace(/\s+/g, '_');
@@ -44,18 +41,18 @@ function profileKey(ragioneSociale: string): string {
 
 export function saveProfile(ragioneSociale: string, data: Partial<ProfileData>): void {
   const key = profileKey(ragioneSociale);
-  const existing = (store.get(`profiles.${key}` as keyof StoreSchema, {} as ProfileData) ?? {}) as ProfileData;
-  store.set(`profiles.${key}` as keyof StoreSchema, {
+  const existing = (store.get(`profiles.${key}`, {}) as ProfileData) ?? {};
+  store.set(`profiles.${key}`, {
     ...existing,
     ...data,
     ragioneSociale,
     lastUpdated: new Date().toISOString()
-  } as ProfileData);
+  });
 }
 
 export function loadProfile(ragioneSociale: string): ProfileData | null {
   const key = profileKey(ragioneSociale);
-  return (store.get(`profiles.${key}` as keyof StoreSchema, null as unknown as ProfileData) ?? null) as ProfileData | null;
+  return (store.get(`profiles.${key}`, null) as ProfileData | null) ?? null;
 }
 
 export function profileExists(ragioneSociale: string): boolean {
@@ -64,13 +61,13 @@ export function profileExists(ragioneSociale: string): boolean {
 
 export function deleteProfile(ragioneSociale: string): void {
   const key = profileKey(ragioneSociale);
-  const profiles = (store.get('profiles', {} as Record<string, ProfileData>)) as Record<string, ProfileData>;
+  const profiles = store.get('profiles', {}) as Record<string, ProfileData>;
   delete profiles[key];
   store.set('profiles', profiles);
 }
 
 export function listProfiles(): Array<{ ragioneSociale: string; lastUpdated: string }> {
-  const profiles = (store.get('profiles', {} as Record<string, ProfileData>)) as Record<string, ProfileData>;
+  const profiles = store.get('profiles', {}) as Record<string, ProfileData>;
   return Object.values(profiles).map(p => ({
     ragioneSociale: p.ragioneSociale,
     lastUpdated: p.lastUpdated ?? ''
@@ -78,10 +75,10 @@ export function listProfiles(): Array<{ ragioneSociale: string; lastUpdated: str
 }
 
 export function getSettings(): AppSettings {
-  return (store.get('settings', {} as AppSettings)) as AppSettings;
+  return store.get('settings', {}) as AppSettings;
 }
 
 export function saveSettings(settings: Partial<AppSettings>): void {
-  const current = (store.get('settings', {} as AppSettings)) as AppSettings;
+  const current = store.get('settings', {}) as AppSettings;
   store.set('settings', { ...current, ...settings });
 }

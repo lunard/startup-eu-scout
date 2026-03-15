@@ -1,25 +1,24 @@
-'use strict';
-
-const { spawn } = require('child_process');
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
+import { spawn } from 'child_process';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
+import type { ProfileData, AppSettings, HealthCheckResult, ModelCheckResult } from './types';
 
 const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5'];
 const REQUIRED_MODEL = 'claude-opus-4.6';
 const CONFIG_PATH = path.join(os.homedir(), '.copilot', 'config.json');
 
-function stripAnsi(str) {
+function stripAnsi(str: string): string {
   return str.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '').replace(/\r/g, '');
 }
 
-function parseVersion(raw) {
+function parseVersion(raw: string): string {
   const first = stripAnsi(raw).split('\n')[0].trim();
   const match = first.match(/\d+\.\d+\.\d+[\w.-]*/);
   return match ? match[0] : first.replace(/run .* to check for updates\.?/gi, '').trim() || 'OK';
 }
 
-function resolveCopilotBin(customPath) {
+function resolveCopilotBin(customPath?: string): string {
   if (customPath) return customPath;
   const candidates = [
     '/opt/homebrew/bin/copilot',
@@ -29,48 +28,55 @@ function resolveCopilotBin(customPath) {
   ];
   return candidates.find(p => {
     try { fs.accessSync(p); return true; } catch { return false; }
-  }) || 'copilot';
+  }) ?? 'copilot';
 }
 
-function runCommand(bin, args, opts) {
-  const timeout = (opts && opts.timeout) || 10000;
+interface RunResult {
+  stdout: string;
+  stderr: string;
+}
+
+interface RunOptions {
+  timeout?: number;
+}
+
+function runCommand(bin: string, args: string[], opts?: RunOptions): Promise<RunResult> {
+  const timeout = opts?.timeout ?? 10000;
   return new Promise((resolve, reject) => {
     const proc = spawn(bin, args, { shell: false });
     let stdout = '', stderr = '';
+
     const timer = setTimeout(() => {
       proc.stdin.destroy();
       proc.stdout.destroy();
       reject(new Error('Timeout'));
     }, timeout);
-    proc.stdout.on('data', d => { stdout += d.toString(); });
-    proc.stderr.on('data', d => { stderr += d.toString(); });
-    proc.on('close', code => {
+
+    proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+    proc.on('close', (code: number | null) => {
       clearTimeout(timer);
       if (code === 0) resolve({ stdout, stderr });
       else reject(new Error(`exit ${code}: ${(stderr || stdout).trim().substring(0, 200)}`));
     });
-    proc.on('error', err => { clearTimeout(timer); reject(new Error(err.message)); });
+    proc.on('error', (err: Error) => { clearTimeout(timer); reject(new Error(err.message)); });
   });
 }
 
-// ─── Health Check ──────────────────────────────────────────────────────────────
-
-async function healthCheck(customPath) {
+export async function healthCheck(customPath?: string): Promise<HealthCheckResult> {
   const bin = resolveCopilotBin(customPath);
   try {
     const { stdout } = await runCommand(bin, ['--version'], { timeout: 8000 });
     return { ok: true, version: parseVersion(stdout), bin };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
-// ─── Model Check (reads ~/.copilot/config.json) ────────────────────────────────
-
-async function checkModel(customPath) {
+export async function checkModel(customPath?: string): Promise<ModelCheckResult> {
   try {
-    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    const currentModel = config.model || 'unknown';
+    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as { model?: string };
+    const currentModel = config.model ?? 'unknown';
     const isOpus = OPUS_MODEL_IDS.some(id => currentModel.toLowerCase() === id.toLowerCase());
     return { currentModel, isOpus, required: REQUIRED_MODEL };
   } catch {
@@ -78,11 +84,7 @@ async function checkModel(customPath) {
   }
 }
 
-// ─── Prompt Runner ─────────────────────────────────────────────────────────────
-// copilot --prompt "..." --model claude-opus-4.6 --allow-all-tools --output-format text
-// --allow-all-tools is required for non-interactive mode (no stdin approval prompts)
-
-function spawnPrompt(bin, prompt, model, onChunk) {
+function spawnPrompt(bin: string, prompt: string, model: string, onChunk: ((text: string) => void) | null): Promise<string> {
   return new Promise((resolve, reject) => {
     const args = [
       '--prompt', prompt,
@@ -94,34 +96,36 @@ function spawnPrompt(bin, prompt, model, onChunk) {
       shell: false,
       env: { ...process.env, NO_COLOR: '1', TERM: 'dumb' }
     });
+
     let fullOutput = '', stderr = '';
-    proc.stdout.on('data', chunk => {
+
+    proc.stdout.on('data', (chunk: Buffer) => {
       const text = stripAnsi(chunk.toString());
       fullOutput += text;
       if (onChunk) onChunk(text);
     });
-    proc.stderr.on('data', d => { stderr += stripAnsi(d.toString()); });
-    proc.on('close', code => {
+    proc.stderr.on('data', (d: Buffer) => { stderr += stripAnsi(d.toString()); });
+    proc.on('close', (code: number | null) => {
       const out = fullOutput.trim();
       if (out.length > 0) resolve(out);
       else reject(new Error(`Copilot exit ${code}: ${stderr.trim().substring(0, 300) || 'nessun output'}`));
     });
-    proc.on('error', err => reject(new Error(`Impossibile avviare copilot: ${err.message}`)));
+    proc.on('error', (err: Error) => reject(new Error(`Impossibile avviare copilot: ${err.message}`)));
   });
 }
 
-// ─── Public API ────────────────────────────────────────────────────────────────
-
-async function generateSchedaEU(rawProfile, settings, onChunk) {
-  const bin = resolveCopilotBin(settings && settings.copilotPath);
+export async function generateSchedaEU(rawProfile: ProfileData, settings: AppSettings, onChunk: (text: string) => void): Promise<string> {
+  const bin = resolveCopilotBin(settings?.copilotPath);
   return spawnPrompt(bin, buildSchedaPrompt(rawProfile), REQUIRED_MODEL, onChunk);
 }
 
-async function extractKeywords(schedaEU, settings) {
-  const bin = resolveCopilotBin(settings && settings.copilotPath);
+export async function extractKeywords(schedaEU: string, settings: AppSettings): Promise<string[]> {
+  const bin = resolveCopilotBin(settings?.copilotPath);
   const result = await spawnPrompt(bin, buildKeywordsPrompt(schedaEU), REQUIRED_MODEL, null);
   const match = result.match(/\[[\s\S]*?\]/);
-  if (match) { try { return JSON.parse(match[0]); } catch {} }
+  if (match) {
+    try { return JSON.parse(match[0]) as string[]; } catch {}
+  }
   return result
     .split(/[\n,]+/)
     .map(s => s.trim().replace(/^["'\-\u2022*\d.]+|["']+$/g, ''))
@@ -129,9 +133,7 @@ async function extractKeywords(schedaEU, settings) {
     .slice(0, 15);
 }
 
-// ─── Prompts ───────────────────────────────────────────────────────────────────
-
-function buildSchedaPrompt(profile) {
+function buildSchedaPrompt(profile: ProfileData): string {
   return `Sei un esperto di finanziamenti europei. Analizza il seguente profilo aziendale e genera una "Scheda Riassuntiva Europea" strutturata in italiano.
 
 La scheda deve includere:
@@ -145,16 +147,16 @@ La scheda deve includere:
 ---
 PROFILO AZIENDALE:
 Ragione Sociale: ${profile.ragioneSociale}
-Sito web: ${profile.url || 'N/D'}
-Descrizione: ${profile.description || 'N/D'}
+Sito web: ${profile.url ?? 'N/D'}
+Descrizione: ${profile.description ?? 'N/D'}
 Testo estratto dal sito:
-${profile.rawText || 'N/D'}
+${profile.rawText ?? 'N/D'}
 ---
 
 Rispondi SOLO con la scheda strutturata, senza preamboli.`;
 }
 
-function buildKeywordsPrompt(schedaEU) {
+function buildKeywordsPrompt(schedaEU: string): string {
   return `Dalla seguente scheda aziendale europea, estrai le 10-15 keyword piu rilevanti per cercare bandi EU sul portale Funding & Tenders.
 Restituisci SOLO un JSON array di stringhe in inglese, senza altri testi.
 Esempio: ["artificial intelligence", "green technology", "SME", "digitalization"]
@@ -164,5 +166,3 @@ ${schedaEU}
 
 OUTPUT:`;
 }
-
-module.exports = { healthCheck, checkModel, generateSchedaEU, extractKeywords };

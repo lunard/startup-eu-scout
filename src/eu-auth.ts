@@ -1,18 +1,10 @@
-'use strict';
+import axios from 'axios';
+import type { AuthTestResult, ConnectivityResult } from './types';
 
-const axios = require('axios');
-
-// EU Login (ECAS) CAS REST endpoint
 const CAS_TICKETS_URL = 'https://ecas.ec.europa.eu/cas/v1/tickets';
 const EU_API_PING_URL = 'https://api.tech.ec.europa.eu/search-api/prod/rest/search';
 
-/**
- * Test EU Login credentials via CAS REST protocol.
- * POST to /cas/v1/tickets with form-encoded username+password.
- * 201 = valid TGT issued → credentials OK
- * 400/401 = bad credentials
- */
-async function testEuLoginCredentials(username, password) {
+export async function testEuLoginCredentials(username: string, password: string): Promise<AuthTestResult> {
   if (!username || !password) {
     return { ok: false, error: 'Username o password mancanti.' };
   }
@@ -25,11 +17,11 @@ async function testEuLoginCredentials(username, password) {
     const res = await axios.post(CAS_TICKETS_URL, params.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 15000,
-      validateStatus: () => true // handle all status codes manually
+      validateStatus: () => true
     });
 
     if (res.status === 201) {
-      const tgtUrl = res.headers['location'] || '';
+      const tgtUrl = (res.headers['location'] as string | undefined) ?? '';
       return { ok: true, message: 'Credenziali EU Login valide. TGT ottenuto.', tgtUrl };
     }
 
@@ -39,24 +31,23 @@ async function testEuLoginCredentials(username, password) {
 
     return { ok: false, error: `Risposta inattesa dal server EU Login (HTTP ${res.status}).` };
   } catch (err) {
-    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'ECONNABORTED') {
-      return { ok: false, error: `Impossibile raggiungere EU Login: ${err.code}` };
+    const axiosErr = err as { code?: string; message?: string };
+    if (axiosErr.code === 'ECONNREFUSED' || axiosErr.code === 'ENOTFOUND' || axiosErr.code === 'ECONNABORTED') {
+      return { ok: false, error: `Impossibile raggiungere EU Login: ${axiosErr.code}` };
     }
-    return { ok: false, error: err.message };
+    return { ok: false, error: axiosErr.message ?? 'Errore sconosciuto.' };
   }
 }
 
-/**
- * Test connectivity to the EU Funding & Tenders public API (no credentials needed).
- */
-async function testApiConnectivity() {
+export async function testApiConnectivity(): Promise<ConnectivityResult> {
   try {
-    const res = await axios.post(EU_API_PING_URL, {}, {
+    const res = await axios.post<{ totalResults?: number }>(EU_API_PING_URL, {}, {
       params: { apiKey: 'SEDIA', text: 'horizon europe', pageSize: 1, pageNumber: 1 },
       headers: { 'Content-Type': 'application/json' },
       timeout: 10000,
       validateStatus: () => true
     });
+
     const ok = res.status >= 200 && res.status < 300;
     return {
       ok,
@@ -66,8 +57,7 @@ async function testApiConnectivity() {
         : `API EU ha risposto con HTTP ${res.status}`
     };
   } catch (err) {
-    return { ok: false, status: 0, message: `Connessione fallita: ${err.message}` };
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, status: 0, message: `Connessione fallita: ${message}` };
   }
 }
-
-module.exports = { testEuLoginCredentials, testApiConnectivity };

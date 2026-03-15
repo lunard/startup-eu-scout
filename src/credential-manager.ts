@@ -1,17 +1,15 @@
-'use strict';
-
-const { safeStorage } = require('electron');
-const Store = require('electron-store');
+import { safeStorage } from 'electron';
+import Store from 'electron-store';
+import type { CredentialData } from './types';
 
 const credStore = new Store({ name: 'eu-match-credentials' });
-
 const CRED_KEY = 'euLogin';
 
-function isEncryptionAvailable() {
+function isEncryptionAvailable(): boolean {
   return safeStorage.isEncryptionAvailable();
 }
 
-function saveCredentials(username, password) {
+export function saveCredentials(username: string, password: string): void {
   if (!isEncryptionAvailable()) {
     throw new Error('Sistema di cifratura OS non disponibile. Impossibile salvare credenziali.');
   }
@@ -20,25 +18,25 @@ function saveCredentials(username, password) {
   credStore.set(CRED_KEY, encrypted.toString('base64'));
 }
 
-function loadCredentials() {
+export function loadCredentials(): CredentialData | null {
   if (!isEncryptionAvailable()) return null;
-  const stored = credStore.get(CRED_KEY, null);
+  const stored = credStore.get(CRED_KEY, null) as string | null;
   if (!stored) return null;
   try {
     const buffer = Buffer.from(stored, 'base64');
     const decrypted = safeStorage.decryptString(buffer);
-    return JSON.parse(decrypted);
+    return JSON.parse(decrypted) as CredentialData;
   } catch {
     return null;
   }
 }
 
-function clearCredentials() {
+export function clearCredentials(): void {
   credStore.delete(CRED_KEY);
 }
 
-function hasCredentials() {
+export function hasCredentials(): boolean {
   return credStore.has(CRED_KEY);
 }
 
-module.exports = { saveCredentials, loadCredentials, clearCredentials, hasCredentials, isEncryptionAvailable };
+export { isEncryptionAvailable };

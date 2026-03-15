@@ -2,10 +2,12 @@
   "name": "eu-match",
   "version": "0.2.4",
   "description": "AI-powered Electron app for EU funding scouting using Copilot CLI",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron .",
+    "dist": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win"
   },
@@ -35,7 +37,7 @@
     "appId": "com.eu-match.app",
     "productName": "EU-Match",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "mac": {
       "category": "public.app-category.business",
@@ -47,10 +49,10 @@
       "target": "nsis"
     },
     "files": [
-      "main.js",
-      "preload.js",
-      "src/**/*",
+      "dist/**/*",
       "renderer/**/*",
+      "!renderer/**/*.ts",
+      "assets/**/*",
       "node_modules/**/*"
     ]
   }
