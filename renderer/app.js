@@ -68,6 +68,8 @@ async function runHealthCheck() {
       `✅ Copilot CLI rilevato (v${health.version}). Modello attivo: <strong>${model.currentModel !== 'unknown' ? model.currentModel : 'non rilevato'}</strong>`);
 
     if (model.isOpus === false) {
+      const label = $('currentModelLabel');
+      if (label) label.textContent = model.currentModel || 'sconosciuto';
       show('modelModal');
     }
   } catch (err) {
@@ -211,8 +213,21 @@ $('btnClearProfile').addEventListener('click', async () => {
 // ─── Generate Scheda EU ───────────────────────────────────────────────────────
 $('btnGeneraScheda').addEventListener('click', async () => {
   if (!state.currentProfile) return;
-  await generateScheda(state.currentProfile);
+
+  // Switch tab immediately so user sees the loading state
   switchToTab('scheda');
+
+  // Disable button to prevent double-clicks
+  const btn = $('btnGeneraScheda');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generazione in corso…';
+
+  try {
+    await generateScheda(state.currentProfile);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>🤖</span> Genera Scheda EU con Copilot';
+  }
 });
 
 async function generateScheda(profile) {
