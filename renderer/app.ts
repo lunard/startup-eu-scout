@@ -406,10 +406,18 @@ function setLoadingMsg(msg: string): void {
   if (el) el.textContent = msg;
 }
 
+let _searchGeneration = 0;
 let _searchInProgress = false;
 
 async function searchGrants(): Promise<void> {
-  if (_searchInProgress) return;  // prevent concurrent runs
+  // Bump generation — any in-flight search will detect the change and abort
+  const myGen = ++_searchGeneration;
+  const aborted = () => myGen !== _searchGeneration;
+
+  if (_searchInProgress) {
+    appLog('warn', '🔄 Previous search cancelled — starting over with new filters.');
+  }
+
   if (!state.keywords || state.keywords.length === 0) {
     show('grantsEmpty');
     return;
@@ -435,6 +443,7 @@ async function searchGrants(): Promise<void> {
     appLog('api', `Searching grants — status: ${statusKey}, programme: ${programme}, language: ${language}`);
 
     const res = await window.euMatch.searchFunding(state.keywords, { programmePeriod: period, statusKey, language, programme });
+    if (aborted()) { hide('grantsLoading'); return; }
 
     if (!res.ok || !res.results || res.results.length === 0) {
       hide('grantsLoading');
@@ -454,6 +463,7 @@ async function searchGrants(): Promise<void> {
     appLog('api', `Crawling ${res.results.length} grant homepages…`);
 
     const enrichRes = await window.euMatch.enrichGrants(res.results);
+    if (aborted()) { hide('grantsLoading'); return; }
     const enriched: SearchResult[] = enrichRes.ok ? (enrichRes.results ?? res.results) : res.results;
 
     appLog('success', `Grant details extracted for ${enriched.length} grants.`);
@@ -522,6 +532,7 @@ async function searchGrants(): Promise<void> {
 
     if (ragioneSociale) {
       state.grantAnalyses = await window.euMatch.loadGrantAnalyses(ragioneSociale);
+      if (aborted()) { hide('grantsLoading'); return; }
     }
 
     const toAnalyze  = ragioneSociale ? analysisPool.filter(b => !state.grantAnalyses?.[b.id]) : [];
@@ -529,10 +540,11 @@ async function searchGrants(): Promise<void> {
     let done         = fromCache;
 
     setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
-    appLog('copilot', `Ranking top ${COPILOT_POOL} from pool of ${enriched.length} by keyword score, selecting best ${TOP_N} — ${toAnalyze.length} to analyse, ${fromCache} from cache`);
+    appLog('copilot', `Ranking top ${COPILOT_POOL} from pool of ${enriched.length} — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction} — ${toAnalyze.length} to analyse, ${fromCache} from cache`);
 
     const BATCH = 3;
     for (let i = 0; i < toAnalyze.length; i += BATCH) {
+      if (aborted()) { hide('grantsLoading'); return; }
       const batch = toAnalyze.slice(i, i + BATCH);
       await Promise.allSettled(batch.map(async (b) => {
         const r = await window.euMatch.analyzeGrant(b, ragioneSociale);
@@ -544,6 +556,7 @@ async function searchGrants(): Promise<void> {
       }));
     }
 
+    if (aborted()) { hide('grantsLoading'); return; }
     appLog('success', `Ranking complete — selecting top ${TOP_N} best-fit grants from ${analysisPool.length} analysed.`);
 
     // Sort analysis pool by partner score, take top 5
@@ -561,11 +574,12 @@ async function searchGrants(): Promise<void> {
     $('grantCount').classList.remove('hidden');
 
   } catch (err) {
+    if (aborted()) { hide('grantsLoading'); return; }
     hide('grantsLoading');
     $('grantResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml((err as Error).message)}</div>`;
     appLog('error', `Search error: ${(err as Error).message}`);
   } finally {
-    _searchInProgress = false;
+    if (!aborted()) _searchInProgress = false;
   }
 }
 

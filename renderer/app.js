@@ -349,10 +349,15 @@ function setLoadingMsg(msg) {
     if (el)
         el.textContent = msg;
 }
+let _searchGeneration = 0;
 let _searchInProgress = false;
 async function searchGrants() {
-    if (_searchInProgress)
-        return; // prevent concurrent runs
+    // Bump generation — any in-flight search will detect the change and abort
+    const myGen = ++_searchGeneration;
+    const aborted = () => myGen !== _searchGeneration;
+    if (_searchInProgress) {
+        appLog('warn', '🔄 Previous search cancelled — starting over with new filters.');
+    }
     if (!state.keywords || state.keywords.length === 0) {
         show('grantsEmpty');
         return;
@@ -374,6 +379,10 @@ async function searchGrants() {
         setLoadingMsg('🔍 Step 1 — Searching EU grants...');
         appLog('api', `Searching grants — status: ${statusKey}, programme: ${programme}, language: ${language}`);
         const res = await window.euMatch.searchFunding(state.keywords, { programmePeriod: period, statusKey, language, programme });
+        if (aborted()) {
+            hide('grantsLoading');
+            return;
+        }
         if (!res.ok || !res.results || res.results.length === 0) {
             hide('grantsLoading');
             $('grantResults').innerHTML = `
@@ -389,6 +398,10 @@ async function searchGrants() {
         setLoadingMsg(`📄 Step 2/${stepCount} — Crawling ${res.results.length} grant homepages for full details...`);
         appLog('api', `Crawling ${res.results.length} grant homepages…`);
         const enrichRes = await window.euMatch.enrichGrants(res.results);
+        if (aborted()) {
+            hide('grantsLoading');
+            return;
+        }
         const enriched = enrichRes.ok ? (enrichRes.results ?? res.results) : res.results;
         appLog('success', `Grant details extracted for ${enriched.length} grants.`);
         // ── Exclude grants with a known past deadline (post-crawl, most accurate data) ──
@@ -449,14 +462,22 @@ async function searchGrants() {
         const analysisPool = sortedByKeyword.slice(0, COPILOT_POOL);
         if (ragioneSociale) {
             state.grantAnalyses = await window.euMatch.loadGrantAnalyses(ragioneSociale);
+            if (aborted()) {
+                hide('grantsLoading');
+                return;
+            }
         }
         const toAnalyze = ragioneSociale ? analysisPool.filter(b => !state.grantAnalyses?.[b.id]) : [];
         const fromCache = analysisPool.length - toAnalyze.length;
         let done = fromCache;
         setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
-        appLog('copilot', `Ranking top ${COPILOT_POOL} from pool of ${enriched.length} by keyword score, selecting best ${TOP_N} — ${toAnalyze.length} to analyse, ${fromCache} from cache`);
+        appLog('copilot', `Ranking top ${COPILOT_POOL} from pool of ${enriched.length} — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction} — ${toAnalyze.length} to analyse, ${fromCache} from cache`);
         const BATCH = 3;
         for (let i = 0; i < toAnalyze.length; i += BATCH) {
+            if (aborted()) {
+                hide('grantsLoading');
+                return;
+            }
             const batch = toAnalyze.slice(i, i + BATCH);
             await Promise.allSettled(batch.map(async (b) => {
                 const r = await window.euMatch.analyzeGrant(b, ragioneSociale);
@@ -466,6 +487,10 @@ async function searchGrants() {
                 done++;
                 setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
             }));
+        }
+        if (aborted()) {
+            hide('grantsLoading');
+            return;
         }
         appLog('success', `Ranking complete — selecting top ${TOP_N} best-fit grants from ${analysisPool.length} analysed.`);
         // Sort analysis pool by partner score, take top 5
@@ -482,12 +507,17 @@ async function searchGrants() {
         $('grantCount').classList.remove('hidden');
     }
     catch (err) {
+        if (aborted()) {
+            hide('grantsLoading');
+            return;
+        }
         hide('grantsLoading');
         $('grantResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
         appLog('error', `Search error: ${err.message}`);
     }
     finally {
-        _searchInProgress = false;
+        if (!aborted())
+            _searchInProgress = false;
     }
 }
 function safeGrantId(id) {

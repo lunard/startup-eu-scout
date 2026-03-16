@@ -190,8 +190,12 @@ ipcMain.handle('eu:testConnectivity', async () => {
 });
 
 ipcMain.handle('copilot:analyzeGrant', async (_event, { grant, ragioneSociale }: { grant: SearchResult; ragioneSociale: string }) => {
-  
-  sendLog('copilot', `Analysing grant: "${grant.title.substring(0, 60)}…"`);
+  const deadline = grant.deadline ? `deadline: ${grant.deadline}` : 'no deadline';
+  const typeInfo = grant.typeOfAction ? ` | ${grant.typeOfAction}` : '';
+  sendLog('copilot',
+    `Analysing grant: "${grant.title.substring(0, 55)}…"`,
+    `${grant.id} | ${grant.programme}${typeInfo} | ${deadline} | keyword score: ${grant.matchingScore ?? 0}%`
+  );
   const settings = storage.getSettings();
   const profile = storage.loadProfile(ragioneSociale);
   const schedaEU = profile?.schedaEU ?? '';
