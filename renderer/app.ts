@@ -468,19 +468,20 @@ async function searchGrants(): Promise<void> {
 
     appLog('success', `Grant details extracted for ${enriched.length} grants.`);
 
-    // ── Exclude grants with a known past deadline OR a stale open date ──────
+    // ── Exclude stale grants (post-crawl, most accurate data) ───────────────
     const now = new Date();
     const thisYearStart = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
 
     const activeGrants = isClosed ? enriched : enriched.filter(g => {
-      // Past deadline → always exclude
+      // Rule 1: known past deadline → always exclude
       if (g.deadline) {
         const d = new Date(g.deadline);
         if (!isNaN(d.getTime()) && d < now) return false;
       }
-      // For "forthcoming": also exclude grants that opened before this year
-      // (e.g. "Opens: 09 Apr 2021" is clearly a stale call, not truly forthcoming)
-      if (statusKey === 'forthcoming' && g.openDate) {
+      // Rule 2: no deadline known → use openDate as staleness signal.
+      // A grant with no deadline that opened before this year is a dead call.
+      // (Grants with a future deadline are already kept by rule 1 passing.)
+      if (!g.deadline && g.openDate) {
         const o = new Date(g.openDate);
         if (!isNaN(o.getTime()) && o < thisYearStart) return false;
       }
@@ -489,7 +490,7 @@ async function searchGrants(): Promise<void> {
 
     const expiredCount = enriched.length - activeGrants.length;
     if (!isClosed && expiredCount > 0) {
-      appLog('info', `Excluded ${expiredCount} grant(s) with past deadlines or stale open dates.`);
+      appLog('info', `Excluded ${expiredCount} stale grant(s) (past deadline or pre-${now.getFullYear()} open date).`);
     }
 
     // ── Type of Action filter (applied post-crawl once typeOfAction is known) ──
