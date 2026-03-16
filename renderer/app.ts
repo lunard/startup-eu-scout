@@ -468,16 +468,28 @@ async function searchGrants(): Promise<void> {
 
     appLog('success', `Grant details extracted for ${enriched.length} grants.`);
 
-    // ── Exclude grants with a known past deadline (post-crawl, most accurate data) ──
+    // ── Exclude grants with a known past deadline OR a stale open date ──────
     const now = new Date();
+    const thisYearStart = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
+
     const activeGrants = isClosed ? enriched : enriched.filter(g => {
-      if (!g.deadline) return true;           // unknown deadline → keep
-      const d = new Date(g.deadline);
-      return isNaN(d.getTime()) || d >= now;  // unparseable or future → keep
+      // Past deadline → always exclude
+      if (g.deadline) {
+        const d = new Date(g.deadline);
+        if (!isNaN(d.getTime()) && d < now) return false;
+      }
+      // For "forthcoming": also exclude grants that opened before this year
+      // (e.g. "Opens: 09 Apr 2021" is clearly a stale call, not truly forthcoming)
+      if (statusKey === 'forthcoming' && g.openDate) {
+        const o = new Date(g.openDate);
+        if (!isNaN(o.getTime()) && o < thisYearStart) return false;
+      }
+      return true;
     });
+
     const expiredCount = enriched.length - activeGrants.length;
     if (!isClosed && expiredCount > 0) {
-      appLog('info', `Excluded ${expiredCount} grant(s) with past deadlines.`);
+      appLog('info', `Excluded ${expiredCount} grant(s) with past deadlines or stale open dates.`);
     }
 
     // ── Type of Action filter (applied post-crawl once typeOfAction is known) ──
