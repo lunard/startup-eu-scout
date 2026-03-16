@@ -170,30 +170,75 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     }
   }
 
-  // Sort by deadline ascending (nearest first, nulls last)
-  const unique = [...byUrl.values()];
-  unique.sort((a, b) => {
-    const getDate = (item: RawHit): Date | null => {
-      const s = (item.metadata?.deadline ?? item.metadata?.closingDate ?? item.metadata?.es_SortDate ?? [])[0];
-      if (!s) return null;
-      const d = new Date(s);
-      return isNaN(d.getTime()) ? null : d;
-    };
-    const da = getDate(a), db = getDate(b);
+  const now = new Date();
+  const thisYearStart = new Date(now.getFullYear(), 0, 1);
+
+  // Helper: extract the most authoritative deadline from a raw hit.
+  // Tries meta.deadline → meta.closingDate → actions[].deadlineDates.
+  // Never uses es_SortDate (that's an ES index date, not a submission deadline).
+  function hitDeadline(item: RawHit): Date | null {
+    const meta = item.metadata ?? {};
+    const direct = (meta.deadline ?? meta.closingDate ?? [])[0];
+    if (direct) { const d = new Date(direct); if (!isNaN(d.getTime())) return d; }
+    try {
+      const actStr = (meta.actions ?? [])[0];
+      if (actStr) {
+        const acts = JSON.parse(actStr) as Array<{ deadlineDates?: string[] }>;
+        const dates = acts.flatMap(a => a.deadlineDates ?? []);
+        if (dates.length) { const d = new Date(dates[dates.length - 1]); if (!isNaN(d.getTime())) return d; }
+      }
+    } catch { /* malformed */ }
+    return null;
+  }
+
+  // Helper: extract opening date from a raw hit (for staleness check).
+  function hitOpenDate(item: RawHit): Date | null {
+    const meta = item.metadata ?? {};
+    const direct = (meta['openDate'] ?? meta['startDate'] ?? [])[0];
+    if (direct) { const d = new Date(direct); if (!isNaN(d.getTime())) return d; }
+    try {
+      const actStr = (meta.actions ?? [])[0];
+      if (actStr) {
+        const acts = JSON.parse(actStr) as Array<{ plannedOpeningDate?: string }>;
+        const opening = acts[0]?.plannedOpeningDate;
+        if (opening) { const d = new Date(opening); if (!isNaN(d.getTime())) return d; }
+      }
+    } catch { /* malformed */ }
+    return null;
+  }
+
+  // Pre-filter: for non-closed searches, drop grants that are demonstrably stale
+  // BEFORE selecting the top-N so we don't waste the pool on dead calls.
+  const filtered = statusKey === 'closed'
+    ? [...byUrl.values()]
+    : [...byUrl.values()].filter(item => {
+        const dl = hitDeadline(item);
+        if (dl && dl < now) return false;                       // past deadline
+        if (!dl) {
+          const od = hitOpenDate(item);
+          if (od && od < thisYearStart) return false;           // no deadline + stale open
+        }
+        return true;
+      });
+
+  // Sort by deadline ascending (nearest first, nulls last).
+  // Never use es_SortDate — it is the ES index date, always in the past.
+  filtered.sort((a, b) => {
+    const da = hitDeadline(a), db = hitDeadline(b);
     if (!da && !db) return 0;
     if (!da) return 1;
     if (!db) return -1;
     return da.getTime() - db.getTime();
   });
-  const top = unique.slice(0, pageSize);
+  const top = filtered.slice(0, pageSize);
 
   const isClosedView = statusKey === 'closed';
 
   return {
-    total:      totalResults,
-    rawFetched: hits.length,
-    uniqueFound: unique.length,
-    results:    top.map(item => normalizeResult(item, keywords, isClosedView)),
+    total:       totalResults,
+    rawFetched:  hits.length,
+    uniqueFound: filtered.length,
+    results:     top.map(item => normalizeResult(item, keywords, isClosedView)),
     pageSize,
     pageNumber: 1,
     requestText: keywordText,
