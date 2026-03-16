@@ -66,6 +66,11 @@ const PROGRAMME_BROWSE: Record<string, string> = {
   'LIFE':    'LIFE programme environment climate biodiversity',
 };
 
+// Always-appended keyword boosts — cross-cutting themes that broaden grant coverage.
+// All are optional signals (text search is OR-based), so they never filter out results,
+// they only help surface grants that mention these topics.
+const FIXED_KEYWORD_BOOST = ['ESG', 'inclusion', 'senior', 'disability', 'social innovation', 'accessibility'];
+
 export async function searchFunding(keywords: string[], options: SearchOptions = {}): Promise<SearchResponse> {
   if (!keywords || keywords.length === 0) {
     throw new Error('No keywords provided for search.');
@@ -78,8 +83,8 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     programme  = 'all'
   } = options;
 
-  const boost      = programme !== 'all' ? (PROGRAMME_BOOST[programme.toUpperCase()] ?? programme) : '';
-  const keywordText = [...keywords, boost].filter(Boolean).join(' ');
+  const boost       = programme !== 'all' ? (PROGRAMME_BOOST[programme.toUpperCase()] ?? programme) : '';
+  const keywordText = [...keywords, ...FIXED_KEYWORD_BOOST, boost].filter(Boolean).join(' ');
 
   const FETCH_PER_PAGE = 100;
 
