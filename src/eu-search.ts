@@ -127,12 +127,15 @@ export async function searchFunding(keywords: string[], options: SearchOptions =
     const key = (item.url ?? item.reference ?? '').replace(/\.json$/, '');
     if (!key) continue;
 
-    // Programme filter: check both URL identifier prefix AND metadata.frameworkProgramme
+    // Programme filter: check URL identifier AND metadata.frameworkProgramme.
+    // Sub-programmes like EIC have IDs like "HORIZON-EIC-..." so we check
+    // both startsWith and contains (with hyphen boundaries) to catch them.
     if (programme !== 'all') {
       const id = (key.split('/').pop() ?? '').toUpperCase();
       const fp = (item.metadata?.frameworkProgramme ?? []).map(s => s.toUpperCase());
       const pUp = programme.toUpperCase();
-      if (!id.startsWith(pUp) && !fp.some(f => f.includes(pUp))) continue;
+      const idMatch = id.startsWith(pUp) || id.includes(`-${pUp}-`) || id.includes(`-${pUp}`);
+      if (!idMatch && !fp.some(f => f.includes(pUp))) continue;
     }
 
     // Status filter — combine API status codes with deadline-date fallback
