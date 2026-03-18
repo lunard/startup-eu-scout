@@ -466,56 +466,58 @@ async function searchGrants() {
             $('grantCount').classList.remove('hidden');
             return;
         }
-        // ── Phase 3: Copilot — pre-rank by keyword score, analyse top 15, show top 5 ──
-        const COPILOT_POOL = 15;
+        // ── Phase 3: Opus ranking — single call picks top 5 from all filtered grants ──
         const TOP_N = 5;
-        // Pre-rank by keyword relevance, take top 15 for Copilot analysis
-        const sortedByKeyword = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
-        const analysisPool = sortedByKeyword.slice(0, COPILOT_POOL);
-        if (ragioneSociale) {
-            state.grantAnalyses = await window.euMatch.loadGrantAnalyses(ragioneSociale);
-            if (aborted()) {
-                hide('grantsLoading');
-                return;
-            }
+        if (!ragioneSociale) {
+            // No startup profile → show grants sorted by keyword score, no Copilot analysis
+            const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
+            const top = sorted.slice(0, TOP_N);
+            state.grantResults = top;
+            hide('grantsLoading');
+            renderGrants(top, res.total ?? 0, false);
+            $('grantCount').textContent = TOP_N.toString();
+            $('grantCount').classList.remove('hidden');
+            return;
         }
-        const toAnalyze = ragioneSociale ? analysisPool.filter(b => !state.grantAnalyses?.[b.id]) : [];
-        const fromCache = analysisPool.length - toAnalyze.length;
-        let done = fromCache;
-        setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
-        appLog('copilot', `Ranking top ${COPILOT_POOL} from pool of ${enriched.length} — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction} — ${toAnalyze.length} to analyse, ${fromCache} from cache`);
-        const BATCH = 3;
-        for (let i = 0; i < toAnalyze.length; i += BATCH) {
-            if (aborted()) {
-                hide('grantsLoading');
-                return;
-            }
-            const batch = toAnalyze.slice(i, i + BATCH);
-            await Promise.allSettled(batch.map(async (b) => {
-                const r = await window.euMatch.analyzeGrant(b, ragioneSociale);
-                if (r.ok && r.analysis) {
-                    state.grantAnalyses[b.id] = { analysis: r.analysis, savedAt: new Date().toISOString(), fitScore: r.fitScore ?? 0 };
-                }
-                done++;
-                setLoadingMsg(`🤖 Step 3/3 — Copilot ranking: ${done}/${analysisPool.length} analysed...`);
-            }));
-        }
+        setLoadingMsg(`🤖 Step 3/3 — Opus is selecting the top ${TOP_N} best-fit grants from ${typeFiltered.length} opportunities...`);
+        appLog('copilot', `Opus ranking: analysing ${typeFiltered.length} grants — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction}`);
+        const rankRes = await window.euMatch.rankOpportunities(typeFiltered, ragioneSociale);
         if (aborted()) {
             hide('grantsLoading');
             return;
         }
-        appLog('success', `Ranking complete — selecting top ${TOP_N} best-fit grants from ${analysisPool.length} analysed.`);
-        // Sort analysis pool by partner score, take top 5
-        analysisPool.sort((a, b) => {
-            const sa = state.grantAnalyses?.[a.id]?.fitScore ?? 0;
-            const sb = state.grantAnalyses?.[b.id]?.fitScore ?? 0;
-            return sb - sa;
-        });
-        const top5 = analysisPool.slice(0, TOP_N);
+        if (!rankRes.ok || !rankRes.rankings || rankRes.rankings.length === 0) {
+            appLog('error', `Opus ranking failed: ${rankRes.error ?? 'no results'}`);
+            // Fallback: show by keyword score
+            const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
+            const top = sorted.slice(0, TOP_N);
+            state.grantResults = top;
+            hide('grantsLoading');
+            renderGrants(top, res.total ?? 0, false);
+            $('grantCount').textContent = TOP_N.toString();
+            $('grantCount').classList.remove('hidden');
+            return;
+        }
+        appLog('success', `Opus ranking complete — top ${rankRes.rankings.length} grants selected.`);
+        // Map rankings back to full grant data, preserving Opus order
+        const grantById = new Map(typeFiltered.map(g => [g.id, g]));
+        const top5 = [];
+        for (const r of rankRes.rankings) {
+            const grant = grantById.get(r.id);
+            if (grant) {
+                grant.fitScore = r.rating;
+                state.grantAnalyses[r.id] = {
+                    analysis: r.explanation,
+                    savedAt: new Date().toISOString(),
+                    fitScore: r.rating
+                };
+                top5.push(grant);
+            }
+        }
         state.grantResults = top5;
         hide('grantsLoading');
         renderGrants(top5, res.total ?? 0, false);
-        $('grantCount').textContent = TOP_N.toString();
+        $('grantCount').textContent = top5.length.toString();
         $('grantCount').classList.remove('hidden');
     }
     catch (err) {

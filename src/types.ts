@@ -76,6 +76,18 @@ export interface AuthTestResult {
   status?: number;
 }
 
+export interface RankedOpportunity {
+  id: string;
+  title: string;
+  rating: number;
+  explanation: string;
+}
+
+export interface RankingResult {
+  rankings: RankedOpportunity[];
+  rawResponse: string;
+}
+
 export interface ConnectivityResult {
   ok: boolean;
   status: number;

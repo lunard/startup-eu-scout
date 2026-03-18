@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import type { ProfileData, AppSettings, HealthCheckResult, ModelCheckResult, SearchResult } from './types';
+import type { ProfileData, AppSettings, HealthCheckResult, ModelCheckResult, SearchResult, RankingResult } from './types';
 
 const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5'];
 const REQUIRED_MODEL = 'claude-opus-4.6';
@@ -199,6 +199,89 @@ Reply ONLY with the structured Markdown analysis, no preamble.
 At the very end, on a separate line, write EXACTLY:
 PUNTEGGIO_PARTNER: XX
 (where XX is an integer 0–100 representing how well this startup fits as a partner for this grant)`;
+}
+
+function buildRankingPrompt(profile: ProfileData | null, schedaEU: string, grants: SearchResult[]): string {
+  const ragioneSociale = profile?.ragioneSociale ?? 'N/D';
+
+  const grantSummaries = grants.map((g, i) => {
+    const desc = (g.fullDescription || g.description || '').substring(0, 600);
+    return `[${i + 1}] ID: ${g.id}
+Title: ${g.title}
+Programme: ${g.programme || 'N/A'} | Type: ${g.typeOfAction || 'N/A'}
+Deadline: ${g.deadline || 'N/A'} | Budget: ${g.budget || 'N/A'}
+Description: ${desc}`;
+  }).join('\n\n');
+
+  return `You are a senior European funding expert. You must select the 5 BEST grant opportunities for this startup from the list below.
+
+## Startup Profile
+Company: ${ragioneSociale}
+${schedaEU ? `\nEU Summary Sheet:\n${schedaEU.substring(0, 2500)}` : ''}
+
+## Available Grant Opportunities (${grants.length} total)
+${grantSummaries}
+
+## Your Task
+Analyse ALL ${grants.length} opportunities above against the startup profile. Select the TOP 5 grants that are the BEST fit for this startup as a partner or coordinator.
+
+For each of the 5 selected grants, provide:
+- **rating**: integer 0–100 (how well the startup fits this grant)
+- **explanation**: 2-3 sentences explaining WHY this startup is a good fit for this specific grant. Be concrete — mention specific startup capabilities that match grant requirements.
+
+Reply ONLY with a JSON array of exactly 5 objects, ordered from best to worst fit. Use this exact format:
+\`\`\`json
+[
+  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 85, "explanation": "..." },
+  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 72, "explanation": "..." },
+  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 68, "explanation": "..." },
+  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 55, "explanation": "..." },
+  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 40, "explanation": "..." }
+]
+\`\`\`
+
+IMPORTANT: Use the exact grant IDs from the list above. Output ONLY the JSON array, nothing else.`;
+}
+
+export async function rankOpportunities(
+  profile: ProfileData | null,
+  schedaEU: string,
+  grants: SearchResult[],
+  settings: AppSettings,
+  onChunk?: ((text: string) => void) | null
+): Promise<RankingResult> {
+  const bin = resolveCopilotBin(settings?.copilotPath);
+  const prompt = buildRankingPrompt(profile, schedaEU, grants);
+  const raw = await spawnPrompt(bin, prompt, REQUIRED_MODEL, onChunk ?? null);
+
+  // Extract JSON array from response (may be wrapped in ```json ... ```)
+  const jsonMatch = raw.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+  if (!jsonMatch) {
+    return { rankings: [], rawResponse: raw };
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]) as Array<{
+      id?: string;
+      title?: string;
+      rating?: number;
+      explanation?: string;
+    }>;
+
+    const rankings = parsed
+      .filter(item => item.id && typeof item.rating === 'number')
+      .slice(0, 5)
+      .map(item => ({
+        id: item.id!,
+        title: item.title ?? '',
+        rating: Math.min(100, Math.max(0, item.rating!)),
+        explanation: item.explanation ?? ''
+      }));
+
+    return { rankings, rawResponse: raw };
+  } catch {
+    return { rankings: [], rawResponse: raw };
+  }
 }
 
 export async function analyzeGrant(

@@ -189,6 +189,32 @@ ipcMain.handle('eu:testConnectivity', async () => {
   return result;
 });
 
+ipcMain.handle('copilot:rankOpportunities', async (event, { grants, ragioneSociale }: { grants: SearchResult[]; ragioneSociale: string }) => {
+  sendLog('copilot', `Ranking ${grants.length} opportunities for "${ragioneSociale}" with Opus…`);
+  const settings = storage.getSettings();
+  const profile = storage.loadProfile(ragioneSociale);
+  const schedaEU = profile?.schedaEU ?? '';
+
+  const sender = event.sender;
+  const onChunk = (text: string): void => {
+    if (sender && !sender.isDestroyed()) sender.send('copilot:chunk', text);
+  };
+
+  try {
+    const result = await copilot.rankOpportunities(profile, schedaEU, grants, settings, onChunk);
+    // Cache individual analyses from the ranking
+    for (const r of result.rankings) {
+      storage.saveGrantAnalysis(ragioneSociale, r.id, r.explanation, r.rating);
+    }
+    sendLog('success', `Opus ranking complete: ${result.rankings.length} top opportunities selected.`);
+    return { ok: true, rankings: result.rankings };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    sendLog('error', `Ranking error: ${message}`);
+    return { ok: false, error: message, rankings: [] };
+  }
+});
+
 ipcMain.handle('copilot:analyzeGrant', async (_event, { grant, ragioneSociale }: { grant: SearchResult; ragioneSociale: string }) => {
   const deadline = grant.deadline ? `deadline: ${grant.deadline}` : 'no deadline';
   const typeInfo = grant.typeOfAction ? ` | ${grant.typeOfAction}` : '';

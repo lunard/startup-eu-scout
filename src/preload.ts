@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('euMatch', {
   analyzeGrant: (grant: Record<string, unknown>, ragioneSociale: string) =>
     ipcRenderer.invoke('copilot:analyzeGrant', { grant, ragioneSociale }),
 
+  rankOpportunities: (grants: Record<string, unknown>[], ragioneSociale: string) =>
+    ipcRenderer.invoke('copilot:rankOpportunities', { grants, ragioneSociale }),
+
   loadGrantAnalyses: (ragioneSociale: string) =>
     ipcRenderer.invoke('grant:loadAnalyses', { ragioneSociale }),
 

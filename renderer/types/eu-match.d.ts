@@ -55,6 +55,13 @@ declare global {
     ts: number;
   }
 
+  interface RankedOpportunity {
+    id: string;
+    title: string;
+    rating: number;
+    explanation: string;
+  }
+
   interface EuMatchAPI {
     buildProfile(ragioneSociale: string, url: string): Promise<ProfileData & { fromCache: boolean }>;
     loadProfile(ragioneSociale: string): Promise<ProfileData | null>;
@@ -67,6 +74,7 @@ declare global {
     searchFunding(keywords: string[], options?: Record<string, unknown>): Promise<{ ok: boolean; total?: number; results?: SearchResult[]; isClosed?: boolean; error?: string }>;
     enrichGrants(results: SearchResult[]): Promise<{ ok: boolean; results?: SearchResult[]; error?: string }>;
     analyzeGrant(grant: SearchResult, ragioneSociale: string): Promise<{ ok: boolean; analysis?: string; fitScore?: number; error?: string }>;
+    rankOpportunities(grants: SearchResult[], ragioneSociale: string): Promise<{ ok: boolean; rankings?: RankedOpportunity[]; error?: string }>;
     loadGrantAnalyses(ragioneSociale: string): Promise<Record<string, { analysis: string; savedAt: string; fitScore?: number }>>;
     saveCredentials(username: string, password: string): Promise<{ ok: boolean; error?: string }>;
     loadCredentials(): Promise<{ ok: boolean; data?: { username: string } | null }>;
