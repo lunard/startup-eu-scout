@@ -5,7 +5,7 @@ import fs from 'fs';
 import type { ProfileData, AppSettings, HealthCheckResult, ModelCheckResult, SearchResult, RankingResult } from './types';
 
 const OPUS_MODEL_IDS = ['claude-opus-4.6', 'claude-opus-4.6-fast', 'claude-opus-4.5'];
-const REQUIRED_MODEL = 'claude-opus-4.6';
+const RECOMMENDED_MODEL = 'claude-opus-4.6';
 const CONFIG_PATH = path.join(os.homedir(), '.copilot', 'config.json');
 
 function stripAnsi(str: string): string {
@@ -78,9 +78,19 @@ export async function checkModel(customPath?: string): Promise<ModelCheckResult>
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as { model?: string };
     const currentModel = config.model ?? 'unknown';
     const isOpus = OPUS_MODEL_IDS.some(id => currentModel.toLowerCase() === id.toLowerCase());
-    return { currentModel, isOpus, required: REQUIRED_MODEL };
+    return { currentModel, isOpus, recommended: RECOMMENDED_MODEL };
   } catch {
-    return { currentModel: 'unknown', isOpus: null, required: REQUIRED_MODEL };
+    return { currentModel: 'unknown', isOpus: null, recommended: RECOMMENDED_MODEL };
+  }
+}
+
+/** Returns the active model from Copilot config, falling back to recommended. */
+function resolveModel(): string {
+  try {
+    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as { model?: string };
+    return config.model || RECOMMENDED_MODEL;
+  } catch {
+    return RECOMMENDED_MODEL;
   }
 }
 
@@ -116,12 +126,12 @@ function spawnPrompt(bin: string, prompt: string, model: string, onChunk: ((text
 
 export async function generateSchedaEU(rawProfile: ProfileData, settings: AppSettings, onChunk: (text: string) => void): Promise<string> {
   const bin = resolveCopilotBin(settings?.copilotPath);
-  return spawnPrompt(bin, buildSchedaPrompt(rawProfile), REQUIRED_MODEL, onChunk);
+  return spawnPrompt(bin, buildSchedaPrompt(rawProfile), resolveModel(), onChunk);
 }
 
 export async function extractKeywords(schedaEU: string, settings: AppSettings): Promise<string[]> {
   const bin = resolveCopilotBin(settings?.copilotPath);
-  const result = await spawnPrompt(bin, buildKeywordsPrompt(schedaEU), REQUIRED_MODEL, null);
+  const result = await spawnPrompt(bin, buildKeywordsPrompt(schedaEU), resolveModel(), null);
   const match = result.match(/\[[\s\S]*?\]/);
   if (match) {
     try { return JSON.parse(match[0]) as string[]; } catch {}
@@ -269,7 +279,7 @@ export async function rankOpportunities(
 ): Promise<RankingResult> {
   const bin = resolveCopilotBin(settings?.copilotPath);
   const prompt = buildRankingPrompt(profile, schedaEU, grants);
-  const raw = await spawnPrompt(bin, prompt, REQUIRED_MODEL, onChunk ?? null);
+  const raw = await spawnPrompt(bin, prompt, resolveModel(), onChunk ?? null);
 
   // Extract JSON array from response (may be wrapped in ```json ... ```)
   const jsonMatch = raw.match(/\[\s*\{[\s\S]*?\}\s*\]/);
@@ -308,7 +318,7 @@ export async function analyzeGrant(
   settings: AppSettings
 ): Promise<{ analysis: string; fitScore: number }> {
   const bin = resolveCopilotBin(settings?.copilotPath);
-  const raw = await spawnPrompt(bin, buildGrantAnalysisPrompt(profile, schedaEU, grant), REQUIRED_MODEL, null);
+  const raw = await spawnPrompt(bin, buildGrantAnalysisPrompt(profile, schedaEU, grant), resolveModel(), null);
   const match = raw.match(/PUNTEGGIO_PARTNER:\s*(\d+)/);
   const fitScore = match ? Math.min(100, parseInt(match[1])) : 50;
   const analysis = raw.replace(/\nPUNTEGGIO_PARTNER:\s*\d+\s*$/, '').trimEnd();

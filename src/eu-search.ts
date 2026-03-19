@@ -5,6 +5,31 @@ const EU_SEARCH_BASE  = 'https://api.tech.ec.europa.eu/search-api/prod/rest/sear
 const EU_TENDERS_BASE = 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search';
 const DEFAULT_PAGE_SIZE = 100;
 
+// Allowed HTML tags for formatted grant descriptions
+const SAFE_TAGS = new Set(['p', 'br', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+
+/** Strip unsafe HTML, keep structural formatting tags. */
+function sanitizeHtml(raw: string): string {
+  if (!raw) return '';
+  return raw
+    // Convert EU-specific section headers (e.g. <SPAN class="topicdescriptionkind">Scope</SPAN>:)
+    .replace(/<span[^>]*class="topicdescriptionkind"[^>]*>([\s\S]*?)<\/span>\s*:?/gi, '<strong>$1:</strong>')
+    // Remove all tags except safe ones
+    .replace(/<\/?([a-z][a-z0-9]*)\b[^>]*\/?>/gi, (match, tag: string) => {
+      const t = tag.toLowerCase();
+      if (SAFE_TAGS.has(t)) {
+        // Keep only the bare tag (strip attributes)
+        const isClosing = match.startsWith('</');
+        return isClosing ? `</${t}>` : `<${t}>`;
+      }
+      return '';
+    })
+    // Collapse excessive whitespace (but keep single newlines from tags)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .substring(0, 5000);
+}
+
 const PROGRAMME_BOOST: Record<string, string> = {
   'HORIZON': 'Horizon Europe research innovation',
   'EIC': 'European Innovation Council EIC accelerator',
@@ -268,11 +293,14 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
   const budget       = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
   const description  = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
 
-  // descriptionByte contains the full grant description (Expected Outcome + Scope) as HTML
-  const descriptionByte = ((meta.descriptionByte ?? [])[0] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // descriptionByte contains the full grant description (Expected Outcome + Scope) as HTML.
+  // Sanitize to keep safe structural tags for formatted rendering.
+  const descriptionByteRaw = (meta.descriptionByte ?? [])[0] ?? '';
+  const descriptionByte = sanitizeHtml(descriptionByteRaw);
   // destinationDetails is even longer context about the programme destination
-  const destDetails     = ((meta.destinationDetails ?? [])[0] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  // Use the richest description available
+  const destDetailsRaw = (meta.destinationDetails ?? [])[0] ?? '';
+  const destDetails = sanitizeHtml(destDetailsRaw);
+  // Use the richest description available (keep HTML)
   const fullDescFromMeta = descriptionByte || destDetails || (item.content ?? '').replace(/<[^>]+>/g, '').trim();
   const metaKws      = meta.keywords ?? [];
   // typesOfAction lives in the search metadata — read it here so the type filter
@@ -401,7 +429,7 @@ async function crawlGrantPage(result: SearchResult): Promise<Partial<SearchResul
 
     const title        = str('title') || result.title;
     const fullDescRaw  = str('objective', 'description', 'scope', 'summary', 'topicDescription', 'content');
-    const fullDesc     = fullDescRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 5000);
+    const fullDesc     = sanitizeHtml(fullDescRaw);
     const openDate     = str('startDate', 'submissionStartDate', 'openDate') || result.openDate;
     const deadline     = str('deadlineDate', 'deadline0') || result.deadline;
     const duration     = str('projectDuration', 'duration');

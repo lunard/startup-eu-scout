@@ -31,7 +31,7 @@ export interface HealthCheckResult {
 export interface ModelCheckResult {
   currentModel: string;
   isOpus: boolean | null;
-  required: string;
+  recommended: string;
 }
 
 export interface SearchResult {

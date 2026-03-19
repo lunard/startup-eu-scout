@@ -66,6 +66,9 @@
           <button class="btn btn-secondary" id="btnClearProfile">
             <span>🗑️</span> Svuota Cache
           </button>
+          <button class="btn btn-secondary" id="btnNewStartup">
+            <span>✨</span> Nuova Startup
+          </button>
         </div>
       </div>
 
@@ -328,21 +331,23 @@
 
   </main>
 
-  <!-- ─── Copilot Model Modal (Blocker) ─── -->
+  <!-- ─── Copilot Model Modal (Warning) ─── -->
   <div class="modal-overlay hidden" id="modelModal">
     <div class="modal">
-      <div class="modal-icon">⚠️</div>
-      <h2>Modello Copilot Non Configurato</h2>
+      <div class="modal-icon">💡</div>
+      <h2>Modello Consigliato: Claude Opus</h2>
       <p>
-        EU-Match richiede <strong>Claude Opus 4.6</strong> per l'analisi dei profili aziendali.
+        Per ottenere i migliori risultati, EU-Match consiglia <strong>Claude Opus 4.6</strong>
+        (deep-research, web search, analisi approfondita).
         Il modello attivo è: <strong id="currentModelLabel">—</strong>
       </p>
-      <p>Per cambiare modello, apri il terminale e lancia Copilot CLI:</p>
+      <p>L'app funziona con qualsiasi modello, ma i risultati potrebbero essere meno accurati.</p>
+      <p>Per cambiare modello, apri il terminale e lancia:</p>
       <code>copilot</code>
-      <p>Poi usa il comando slash <code>/model</code> e seleziona <strong>claude-opus-4.6</strong> dalla lista. Riavvia EU-Match dopo aver salvato.</p>
+      <p>Poi usa il comando slash <code>/model</code> e seleziona <strong>claude-opus-4.6</strong>.</p>
       <div class="btn-group" style="justify-content:center">
-        <button class="btn btn-secondary" id="btnDismissModal">Continua Comunque</button>
-        <button class="btn btn-primary" id="btnRecheckModal">🔄 Ri-verifica Modello</button>
+        <button class="btn btn-primary" id="btnDismissModal">👍 Continua con il modello attuale</button>
+        <button class="btn btn-secondary" id="btnRecheckModal">🔄 Ri-verifica Modello</button>
       </div>
     </div>
   </div>

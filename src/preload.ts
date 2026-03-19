@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('euMatch', {
   deleteProfile: (ragioneSociale: string) =>
     ipcRenderer.invoke('storage:delete', { ragioneSociale }),
 
+  profileExists: (ragioneSociale: string) =>
+    ipcRenderer.invoke('storage:exists', { ragioneSociale }),
+
   updateProfile: (ragioneSociale: string, data: Partial<ProfileData>) =>
     ipcRenderer.invoke('storage:update', { ragioneSociale, data }),
 

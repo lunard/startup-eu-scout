@@ -68,9 +68,10 @@ declare global {
     loadProfile(ragioneSociale: string): Promise<ProfileData | null>;
     listProfiles(): Promise<Array<{ ragioneSociale: string; lastUpdated: string }>>;
     deleteProfile(ragioneSociale: string): Promise<{ ok: boolean }>;
+    profileExists(ragioneSociale: string): Promise<boolean>;
     updateProfile(ragioneSociale: string, data: Partial<ProfileData>): Promise<{ ok: boolean }>;
     copilotHealthCheck(): Promise<{ ok: boolean; version?: string; error?: string }>;
-    copilotCheckModel(): Promise<{ currentModel: string; isOpus: boolean | null; required: string }>;
+    copilotCheckModel(): Promise<{ currentModel: string; isOpus: boolean | null; recommended: string }>;
     generateSchedaEU(profile: ProfileData): Promise<{ ok: boolean; schedaEU?: string; keywords?: string[]; error?: string }>;
     searchFunding(keywords: string[], options?: Record<string, unknown>): Promise<{ ok: boolean; total?: number; results?: SearchResult[]; isClosed?: boolean; error?: string }>;
     enrichGrants(results: SearchResult[]): Promise<{ ok: boolean; results?: SearchResult[]; error?: string }>;

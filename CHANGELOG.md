@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0] — 2026-03-19
+
+### Added
+- **Delete startup from history** — each profile in the "Profili Recenti" list now has a 🗑️ delete button (appears on hover). Deleting the active profile also resets all fields.
+- **"Nuova Startup" button** — clears all form fields, search filters, results, and state for a fresh start.
+- **Copy grant ID** — 📋 button in the accordion row copies the grant ID to clipboard with visual ✅ feedback.
+- **Formatted descriptions** — grant descriptions in the accordion preserve HTML formatting (paragraphs, bullet lists, bold headings like "Expected Outcome:" / "Scope:") instead of showing a flat wall of text.
+
+### Changed
+- **Model constraint relaxed** — Claude Opus 4.6 is now _recommended_ instead of _required_. The app works with any Copilot model; a friendly suggestion modal appears when a non-Opus model is detected. The active model from Copilot config is used automatically.
+- **Smart "Profila Startup"** — when the entered company name already exists in history, the button loads the cached profile instead of re-scraping. A new/unknown name triggers a fresh build.
+
+### Fixed
+- **HTML-safe descriptions** — EU grant HTML (`descriptionByte`) is sanitized to keep safe tags (`<p>`, `<ul>`, `<li>`, `<strong>`, etc.) and strip unsafe ones, converting EU-specific `<span class="topicdescriptionkind">` into bold headings.
+- **Search highlighting in HTML** — text search in the accordion now highlights matches inside formatted HTML without breaking tags.
+
 ## [0.7.0] — 2026-03-19
 
 ### Fixed

@@ -60,6 +60,10 @@ ipcMain.handle('storage:delete', async (_event, { ragioneSociale }: { ragioneSoc
   return { ok: true };
 });
 
+ipcMain.handle('storage:exists', async (_event, { ragioneSociale }: { ragioneSociale: string }) => {
+  return storage.profileExists(ragioneSociale);
+});
+
 ipcMain.handle('storage:update', async (_event, { ragioneSociale, data }: { ragioneSociale: string; data: Partial<ProfileData> }) => {
   if (!ragioneSociale) return { ok: false };
   storage.saveProfile(ragioneSociale, data);
@@ -114,7 +118,7 @@ ipcMain.handle('copilot:health', async () => {
 ipcMain.handle('copilot:checkModel', async () => {
   const settings = storage.getSettings();
   const result = await copilot.checkModel(settings.copilotPath);
-  sendLog('info', `Modello Copilot attivo: ${result.currentModel ?? '?'} — richiesto: ${result.required ?? '?'}`);
+  sendLog('info', `Modello Copilot attivo: ${result.currentModel ?? '?'} — consigliato: ${result.recommended ?? '?'}`);
   return result;
 });
 

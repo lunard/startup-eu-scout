@@ -1,6 +1,6 @@
 {
   "name": "eu-match",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "AI-powered Electron app for EU funding scouting using Copilot CLI",
   "main": "dist/main.js",
   "scripts": {

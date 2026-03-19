@@ -133,12 +133,30 @@ async function renderRecentProfiles() {
     <div class="recent-item" data-name="${escHtml(p.ragioneSociale)}">
       <span class="recent-name">${escHtml(p.ragioneSociale)}</span>
       <span class="recent-date">${fmtDate(p.lastUpdated)}</span>
+      <button class="recent-delete" data-name="${escHtml(p.ragioneSociale)}" title="Elimina profilo">🗑️</button>
     </div>
   `).join('')}</div>`;
     el.querySelectorAll('.recent-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.recent-delete'))
+                return;
             $('ragioneSociale').value = item.dataset.name ?? '';
             loadCachedProfile(item.dataset.name ?? '');
+        });
+    });
+    el.querySelectorAll('.recent-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const name = btn.dataset.name ?? '';
+            if (!name)
+                return;
+            await window.euMatch.deleteProfile(name);
+            // If deleted profile is the currently loaded one, clear it
+            const current = $('ragioneSociale').value.trim();
+            if (current.toLowerCase() === name.toLowerCase()) {
+                resetAll();
+            }
+            await renderRecentProfiles();
         });
     });
 }
@@ -153,7 +171,15 @@ $('btnProfila').addEventListener('click', async () => {
         return;
     }
     const url = $('websiteUrl').value.trim();
-    await buildProfile(ragioneSociale, url);
+    // If a profile already exists with this name, load from cache instead of rebuilding
+    const exists = await window.euMatch.profileExists(ragioneSociale);
+    if (exists) {
+        await loadCachedProfile(ragioneSociale);
+    }
+    else {
+        // New name: treat as new startup
+        await buildProfile(ragioneSociale, url);
+    }
 });
 async function loadCachedProfile(ragioneSociale) {
     const cached = await window.euMatch.loadProfile(ragioneSociale);
@@ -236,6 +262,46 @@ $('btnClearProfile').addEventListener('click', async () => {
     hide('profileResult');
     state.currentProfile = null;
     await renderRecentProfiles();
+});
+/** Reset all form fields, filters, state, and UI to initial empty state. */
+function resetAll() {
+    // Clear profile inputs
+    $('ragioneSociale').value = '';
+    $('websiteUrl').value = '';
+    // Clear state
+    state.currentProfile = null;
+    state.schedaEU = '';
+    state.keywords = [];
+    state.grantResults = [];
+    state.grantAnalyses = {};
+    // Hide profile results
+    hide('profileResult');
+    // Reset Scheda EU tab
+    show('schedaInfo');
+    hide('schedaSubTabs');
+    hide('schedaPreviewPanel');
+    hide('schedaSourcePanel');
+    $('schedaContent').innerHTML = '';
+    hide('keywordsCard');
+    $('keywordsList').innerHTML = '';
+    // Reset search filters to defaults
+    $('grantStatus').value = 'open-forthcoming';
+    $('grantProgramme').value = 'all';
+    $('grantTypeOfAction').value = 'all';
+    $('grantLanguage').value = 'en';
+    $('directGrantId').value = '';
+    hide('directDisclaimer');
+    hide('directGrantClear');
+    // Clear grant results area
+    $('grantAccordionArea').innerHTML = '';
+    $('opusStreamOutput').innerHTML = '';
+    hide('opusStreamCard');
+    // Clear lastProfile setting
+    window.euMatch.saveSettings({ lastProfile: '' });
+}
+$('btnNewStartup').addEventListener('click', () => {
+    resetAll();
+    $('ragioneSociale').focus();
 });
 // ─── Generate Scheda EU ───────────────────────────────────────────────────────
 $('btnGeneraScheda').addEventListener('click', async () => {
@@ -407,6 +473,23 @@ function highlightText(text, query) {
     const qEsc = escHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return escaped.replace(new RegExp(`(${qEsc})`, 'gi'), '<mark class="acc-highlight">$1</mark>');
 }
+/** Highlight search text inside already-sanitised HTML (preserves tags). */
+function highlightHtml(html, query) {
+    if (!query)
+        return html;
+    const qEsc = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(${qEsc})`, 'gi');
+    // Split on HTML tags, highlight only text segments
+    return html.replace(/(<[^>]+>)|([^<]+)/g, (_m, tag, text) => {
+        if (tag)
+            return tag;
+        return text.replace(re, '<mark class="acc-highlight">$1</mark>');
+    });
+}
+/** Strip HTML tags for plain-text search matching. */
+function stripHtml(html) {
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+}
 // Tracks checked grant IDs
 let _accChecked = new Set();
 let _accGrants = [];
@@ -424,7 +507,9 @@ function rebuildAccordion(q) {
         const title = g.title || '';
         const desc = g.description || '';
         const fullDesc = g.fullDescription || desc;
-        const searchText = `${g.id} ${title} ${fullDesc}`.toLowerCase();
+        const isHtml = fullDesc.includes('<');
+        const plainDesc = isHtml ? stripHtml(fullDesc) : fullDesc;
+        const searchText = `${g.id} ${title} ${plainDesc}`.toLowerCase();
         const match = !q || searchText.includes(q);
         if (!match)
             return '';
@@ -440,17 +525,21 @@ function rebuildAccordion(q) {
             g.programme ? `🏛️ ${g.programme}` : '',
             g.typeOfAction ? `⚗️ ${g.typeOfAction}` : '',
         ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+        const descBlock = isHtml
+            ? highlightHtml(fullDesc, q)
+            : highlightText(fullDesc, q);
         return `<details class="acc-item">
       <summary class="acc-row">
         <input type="checkbox" class="acc-check" data-gid="${escHtml(g.id)}" ${checked} />
         <span class="acc-num">${i + 1}.</span>
         <a class="acc-id" href="${escHtml(url)}" target="_blank" title="Open in EU Portal">${highlightText(g.id, q)}</a>
+        <button class="acc-copy" data-gid="${escHtml(g.id)}" title="Copy grant ID">📋</button>
         <span class="acc-label">${highlightText(shortLabel, q)}</span>
       </summary>
       <div class="acc-detail">
         <div class="acc-detail-title">${highlightText(title, q)}</div>
         ${dates ? `<div class="acc-detail-meta">${dates}</div>` : ''}
-        ${fullDesc ? `<div class="acc-detail-desc">${highlightText(fullDesc, q)}</div>` : ''}
+        ${fullDesc ? `<div class="acc-detail-desc">${descBlock}</div>` : ''}
         <a class="acc-detail-link" href="${escHtml(url)}" target="_blank">🔗 Open in EU Portal</a>
       </div>
     </details>`;
@@ -537,6 +626,20 @@ function bindAccordionEvents(currentQuery) {
             e.preventDefault();
             e.stopPropagation();
             window.open(a.href, '_blank');
+        });
+    });
+    // Copy grant ID buttons
+    $('grantAccordionArea').querySelectorAll('.acc-copy').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const gid = btn.dataset.gid ?? '';
+            if (gid) {
+                navigator.clipboard.writeText(gid);
+                const el = btn;
+                el.textContent = '✅';
+                setTimeout(() => { el.textContent = '📋'; }, 1200);
+            }
         });
     });
     // Confirm button

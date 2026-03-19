@@ -1,23 +1,24 @@
 # EU-Match — Startup EU Scout
 
-AI-powered **Electron desktop app** that automates EU funding discovery for startups by combining business register data, web scraping, and Copilot CLI (Opus 4.6) intelligence.
+AI-powered **Electron desktop app** that automates EU funding discovery for startups by combining business register data, web scraping, and Copilot CLI intelligence.
 
 ## Features
 - 🏢 **Startup Profiling** — auto-fetches company data from OpenCorporates + scrapes website
-- 🤖 **Opus Deep Analysis** — Claude Opus 4.6 performs intensive web research on each grant (work programme PDFs, scope, eligibility, TRL, budget) before ranking
+- 🤖 **Opus Deep Analysis** — Claude Opus 4.6 (recommended) performs intensive web research on each grant (work programme PDFs, scope, eligibility, TRL, budget) before ranking
 - 📋 **Smart Grant Ranking** — single Opus call analyses all filtered grants and returns the top 15 best-fit opportunities with ratings and explanations
 - 🔍 **Live Analysis Stream** — watch Opus reasoning in real-time as it searches work programmes and evaluates grants
 - 🎯 **Direct Grant Analysis** — paste a specific grant ID to skip all filters and run Opus deep analysis on that single grant
-- 📋 **Grant Accordion** — collapsible checklist of all grants with select/deselect, text filter with highlighting, expandable details; Opus only runs after you confirm
+- 📋 **Grant Accordion** — collapsible checklist with formatted descriptions (Expected Outcome, Scope…), copy-ID button, select/deselect, text filter with highlighting, expandable details
 - 🏷️ **Editable Keywords** — add/remove search keywords extracted from the AI-generated EU profile
 - 💾 **Auto-Resume** — automatically loads your last selected startup on launch
+- ✨ **Profile Management** — delete profiles from history, "Nuova Startup" reset button, smart name detection (new vs existing)
 - 🔐 **Secure Credentials** — EU Login credentials encrypted via OS Keychain (macOS) / DPAPI (Windows)
 - 💾 **Profile Cache** — avoids redundant API calls via `electron-store` local cache
 
 ## Requirements
 - Node.js ≥ 18
 - [GitHub CLI](https://cli.github.com/) + [gh-copilot extension](https://github.com/github/gh-copilot)
-- Copilot model set to **claude-opus-4-6**:
+- Copilot model — **claude-opus-4.6 recommended** (any model works, but Opus gives the best deep-research results):
   ```
   gh copilot config set model claude-opus-4-6
   ```
@@ -56,7 +57,7 @@ npm run build:win   # Windows NSIS installer
 ## Tab Overview
 | Tab | Description |
 |-----|-------------|
-| **Profilo Startup** | Enter company name + URL → auto-profile with cache |
+| **Profilo Startup** | Enter company name + URL → auto-profile with cache, delete profiles, reset for new startup |
 | **Scheda EU** | AI-generated European profile + editable keyword tags |
 | **Bandi** | EU grants ranked by Opus deep analysis with live streaming, direct grant ID analysis, and filterable grant accordion |
 | **Impostazioni** | Copilot path config + EU Login credentials |
