@@ -4,8 +4,11 @@ AI-powered **Electron desktop app** that automates EU funding discovery for star
 
 ## Features
 - 🏢 **Startup Profiling** — auto-fetches company data from OpenCorporates + scrapes website
-- 🤖 **Copilot CLI Integration** — uses Claude Opus 4.6 to generate a structured "Scheda Europea"
-- 📋 **Bandi Search** — queries the EU Funding & Tenders API with AI-extracted keywords and shows a Matching Score
+- 🤖 **Opus Deep Analysis** — Claude Opus 4.6 performs intensive web research on each grant (work programme PDFs, scope, eligibility, TRL, budget) before ranking
+- 📋 **Smart Grant Ranking** — single Opus call analyses all filtered grants and returns the top 15 best-fit opportunities with ratings and explanations
+- 🔍 **Live Analysis Stream** — watch Opus reasoning in real-time as it searches work programmes and evaluates grants
+- 🏷️ **Editable Keywords** — add/remove search keywords extracted from the AI-generated EU profile
+- 💾 **Auto-Resume** — automatically loads your last selected startup on launch
 - 🔐 **Secure Credentials** — EU Login credentials encrypted via OS Keychain (macOS) / DPAPI (Windows)
 - 💾 **Profile Cache** — avoids redundant API calls via `electron-store` local cache
 
@@ -31,25 +34,29 @@ npm run build:win   # Windows NSIS installer
 
 ## Project Structure
 ```
-├── main.js                 # Electron main process + IPC handlers
-├── preload.js              # contextBridge API (renderer ↔ main)
 ├── src/
-│   ├── storage.js          # electron-store profile cache + settings
-│   ├── credential-manager.js  # safeStorage (Keychain/DPAPI)
-│   ├── startup-profiler.js    # OpenCorporates API + cheerio web scraping
-│   ├── copilot-bridge.js      # Copilot CLI child_process integration
-│   └── eu-search.js           # EU Funding & Tenders API (POST search)
+│   ├── main.ts                # Electron main process + IPC handlers
+│   ├── preload.ts             # contextBridge API (renderer ↔ main)
+│   ├── types.ts               # Shared TypeScript interfaces
+│   ├── storage.ts             # electron-store profile cache + settings
+│   ├── credential-manager.ts  # safeStorage (Keychain/DPAPI)
+│   ├── startup-profiler.ts    # OpenCorporates API + cheerio web scraping
+│   ├── copilot-bridge.ts      # Copilot CLI integration (scheda, ranking, analysis)
+│   ├── eu-search.ts           # EU Funding & Tenders API (POST search + crawl)
+│   └── eu-auth.ts             # EU Login credential testing
 └── renderer/
-    ├── index.html          # Multi-tab UI
-    ├── app.js              # Renderer logic
-    └── styles.css          # EU-branded design system
+    ├── index.html             # Multi-tab UI
+    ├── app.ts                 # Renderer logic
+    ├── styles.css             # EU-branded design system
+    └── types/eu-match.d.ts    # Renderer type declarations
 ```
 
 ## Tab Overview
 | Tab | Description |
 |-----|-------------|
 | **Profilo Startup** | Enter company name + URL → auto-profile with cache |
-| **Scheda EU** | AI-generated European profile + keyword extraction |
-| **Bandi** | EU funding results with Matching Score |
+| **Scheda EU** | AI-generated European profile + editable keyword tags |
+| **Bandi** | EU grants ranked by Opus deep analysis with live streaming |
 | **Impostazioni** | Copilot path config + EU Login credentials |
+| **Log** | Real-time event stream with color-coded levels |
 

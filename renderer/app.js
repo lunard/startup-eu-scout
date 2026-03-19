@@ -374,21 +374,66 @@ $('btnSearchGrants').addEventListener('click', async () => {
     await searchGrants();
 });
 $('btnSearch').addEventListener('click', () => { searchGrants(); });
-// Re-search when a filter changes — debounced + guarded against concurrent runs
-let _searchDebounce = null;
-['programmePeriod', 'grantStatus', 'grantLanguage', 'grantProgramme', 'grantTypeOfAction'].forEach(id => {
-    $(id).addEventListener('change', () => {
-        if (!state.keywords || state.keywords.length === 0)
-            return;
-        if (_searchDebounce)
-            clearTimeout(_searchDebounce);
-        _searchDebounce = setTimeout(() => searchGrants(), 400);
-    });
-});
 function setLoadingMsg(msg) {
     const el = document.getElementById('grantsLoadingMsg');
     if (el)
         el.textContent = msg;
+}
+// ─── Opus Stream Formatting ──────────────────────────────────────────────────
+const GRANT_ID_RE = /\b(HORIZON[-\w]+|EIC[-\w]+|DIGITAL[-\w]+|COSME[-\w]+|LIFE[-\w]+|EIT[-\w]+)\b/g;
+function linkifyGrantIds(html) {
+    return html.replace(GRANT_ID_RE, (id) => {
+        const url = `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${id}`;
+        return `<a class="stream-grant-link" href="${url}" target="_blank" title="Open in EU Portal">${id}</a>`;
+    });
+}
+function appendStreamLine(container, raw) {
+    const trimmed = raw.trim();
+    if (!trimmed)
+        return;
+    const div = document.createElement('div');
+    div.className = 'stream-line';
+    // Tool call: "● Web Search ..."
+    if (trimmed.startsWith('●') && /web\s*search/i.test(trimmed)) {
+        const query = trimmed.replace(/^●\s*Web\s*Search\s*/i, '').trim();
+        div.className = 'stream-line stream-tool';
+        div.innerHTML = `🔍 <strong>Web Search:</strong> ${linkifyGrantIds(escHtml(query))}`;
+        container.appendChild(div);
+        return;
+    }
+    // Tool call: "● Read ..." or "● Fetch ..."
+    if (trimmed.startsWith('●') && /read|fetch/i.test(trimmed)) {
+        const target = trimmed.replace(/^●\s*(Read|Fetch)\s*/i, '').trim();
+        div.className = 'stream-line stream-tool';
+        div.innerHTML = `📄 <strong>Reading:</strong> ${linkifyGrantIds(escHtml(target))}`;
+        container.appendChild(div);
+        return;
+    }
+    // Tool result JSON: "└ {..." — collapse to summary
+    if (trimmed.startsWith('└') && trimmed.includes('{')) {
+        try {
+            const jsonStr = trimmed.replace(/^└\s*/, '');
+            const obj = JSON.parse(jsonStr);
+            const val = obj?.text?.value ?? obj?.value ?? '';
+            if (val) {
+                const summary = String(val).substring(0, 180).replace(/\n/g, ' ');
+                div.className = 'stream-line stream-result';
+                div.innerHTML = `&nbsp;&nbsp;💬 ${linkifyGrantIds(escHtml(summary))}${val.length > 180 ? '…' : ''}`;
+                container.appendChild(div);
+                return;
+            }
+        }
+        catch { /* not JSON, show raw */ }
+        // Show shortened raw
+        div.className = 'stream-line stream-result';
+        const short = trimmed.substring(0, 200);
+        div.innerHTML = `&nbsp;&nbsp;📋 ${escHtml(short)}${trimmed.length > 200 ? '…' : ''}`;
+        container.appendChild(div);
+        return;
+    }
+    // Regular text / reasoning — linkify grant IDs
+    div.innerHTML = linkifyGrantIds(escHtml(trimmed));
+    container.appendChild(div);
 }
 let _searchGeneration = 0;
 let _searchInProgress = false;
@@ -523,10 +568,17 @@ async function searchGrants() {
         appLog('copilot', `Opus deep analysis: ${typeFiltered.length} grants — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction}`);
         // Show streaming output
         const streamEl = $('opusStreamOutput');
-        streamEl.textContent = '';
+        streamEl.innerHTML = '';
         show('opusStreamCard');
+        let _streamBuffer = '';
         window.euMatch.onCopilotChunk((text) => {
-            streamEl.textContent += text;
+            _streamBuffer += text;
+            // Process complete lines
+            const lines = _streamBuffer.split('\n');
+            _streamBuffer = lines.pop() ?? '';
+            for (const line of lines) {
+                appendStreamLine(streamEl, line);
+            }
             streamEl.scrollTop = streamEl.scrollHeight;
         });
         try {

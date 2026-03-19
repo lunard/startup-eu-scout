@@ -295,6 +295,17 @@ body {
   word-break: break-word;
   margin-top: 10px;
 }
+.stream-line { padding: 2px 0; }
+.stream-tool { color: #58a6ff; }
+.stream-tool strong { color: #79c0ff; }
+.stream-result { color: #8b949e; font-size: 11px; }
+.stream-grant-link {
+  color: #ffa657;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+.stream-grant-link:hover { color: #ffcc00; text-decoration-style: solid; }
 
 /* ─── Grant Results ──────────────────────────────────── */
 .results-header {
