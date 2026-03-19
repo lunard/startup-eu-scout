@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0] — 2026-03-19
+
+### Added
+- **Direct Grant ID Analysis** — new textbox to paste a specific grant ID (e.g. `HORIZON-CL2-2026-01-DEMOCRACY-05`), skipping all filters and running Opus deep analysis on that single grant. Shows a warning disclaimer when active; quick-clear with ✕ button.
+- **Grant Accordion** — collapsible list of all grants entering the Opus analysis phase, showing ID (clickable EU Portal link) and first 100 chars of title. Includes a live text filter to search by ID, title, or description.
+- **Formatted Opus Stream** — live output now shows 🔍 for web searches, 📄 for document reads, 💬 for result summaries with clickable grant ID links, instead of raw JSON.
+- **Search-only-on-click** — grants search now only triggers on button click (removed auto-search on filter change).
+
 ## [0.4.0] — 2026-03-19
 
 ### Added
