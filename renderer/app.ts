@@ -506,12 +506,14 @@ function rebuildAccordion(q: string): void {
     const url = g.portalUrl;
     const shortLabel = title.substring(0, 100) + (title.length > 100 ? '…' : '');
     const dates = [
-      g.openDate ? `📂 Opens: ${g.openDate}` : '',
-      g.deadline ? `📅 Deadline: ${g.deadline}` : '',
+      g.openDate ? `📂 Opens: ${fmtDate(g.openDate)}` : '',
+      g.deadline ? `📅 Deadline: ${fmtDate(g.deadline)}` : '',
       g.budget   ? `💰 ${g.budget}` : '',
       g.programme ? `🏛️ ${g.programme}` : '',
       g.typeOfAction ? `⚗️ ${g.typeOfAction}` : '',
     ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+    const fullDesc = g.fullDescription || desc;
 
     return `<details class="acc-item">
       <summary class="acc-row">
@@ -523,7 +525,7 @@ function rebuildAccordion(q: string): void {
       <div class="acc-detail">
         <div class="acc-detail-title">${highlightText(title, q)}</div>
         ${dates ? `<div class="acc-detail-meta">${dates}</div>` : ''}
-        ${desc ? `<div class="acc-detail-desc">${highlightText(desc, q)}</div>` : ''}
+        ${fullDesc ? `<div class="acc-detail-desc">${highlightText(fullDesc, q)}</div>` : ''}
         <a class="acc-detail-link" href="${escHtml(url)}" target="_blank">🔗 Open in EU Portal</a>
       </div>
     </details>`;
