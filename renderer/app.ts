@@ -452,6 +452,52 @@ function linkifyGrantIds(html: string): string {
   });
 }
 
+// ─── Grant Accordion (pre-analysis list) ─────────────────────────────────────
+function renderGrantAccordion(grants: SearchResult[]): void {
+  const rows = grants.map((g, i) => {
+    const label = (g.title || g.description || '').substring(0, 100);
+    const url = g.portalUrl;
+    const searchText = `${g.id} ${g.title} ${g.description}`.toLowerCase();
+    return `<div class="acc-row" data-search="${escHtml(searchText)}">
+      <span class="acc-num">${i + 1}.</span>
+      <a class="acc-id" href="${escHtml(url)}" target="_blank" title="Open in EU Portal">${escHtml(g.id)}</a>
+      <span class="acc-label">${escHtml(label)}${(g.title || g.description || '').length > 100 ? '…' : ''}</span>
+    </div>`;
+  }).join('');
+
+  $('grantResults').innerHTML = `
+    <details class="grant-accordion" open>
+      <summary class="acc-summary">📋 ${grants.length} grants entering Opus analysis</summary>
+      <div class="acc-filter-wrap">
+        <input type="text" class="acc-filter-input" id="accFilterInput" placeholder="🔍 Filter grants…" />
+        <span class="acc-filter-count" id="accFilterCount">${grants.length} / ${grants.length}</span>
+      </div>
+      <div class="acc-body" id="accBody">${rows}</div>
+    </details>`;
+
+  // Filter on typing
+  const input = $('accFilterInput') as HTMLInputElement;
+  input.addEventListener('input', () => {
+    const q = input.value.toLowerCase().trim();
+    const allRows = $('accBody').querySelectorAll('.acc-row');
+    let visible = 0;
+    allRows.forEach(row => {
+      const match = !q || ((row as HTMLElement).dataset.search ?? '').includes(q);
+      (row as HTMLElement).style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    $('accFilterCount').textContent = `${visible} / ${grants.length}`;
+  });
+
+  // Make links open in external browser
+  $('grantResults').querySelectorAll('.acc-id').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      window.open((a as HTMLAnchorElement).href, '_blank');
+    });
+  });
+}
+
 function appendStreamLine(container: HTMLElement, raw: string): void {
   const trimmed = raw.trim();
   if (!trimmed) return;
@@ -649,6 +695,9 @@ async function searchGrants(): Promise<void> {
 
     setLoadingMsg(`🧠 Step 3/3 — Opus deep analysis: researching ${typeFiltered.length} grants with web search...`);
     appLog('copilot', `Opus deep analysis: ${typeFiltered.length} grants — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction}`);
+
+    // Show accordion with filtered grants going into analysis
+    renderGrantAccordion(typeFiltered);
 
     // Show streaming output
     const streamEl = $('opusStreamOutput');
