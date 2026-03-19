@@ -497,7 +497,8 @@ function rebuildAccordion(q: string): void {
   const rows = grants.map((g, i) => {
     const title = g.title || '';
     const desc = g.description || '';
-    const searchText = `${g.id} ${title} ${desc}`.toLowerCase();
+    const fullDesc = g.fullDescription || desc;
+    const searchText = `${g.id} ${title} ${fullDesc}`.toLowerCase();
     const match = !q || searchText.includes(q);
     if (!match) return '';
     visible++;
@@ -508,12 +509,11 @@ function rebuildAccordion(q: string): void {
     const dates = [
       g.openDate ? `📂 Opens: ${fmtDate(g.openDate)}` : '',
       g.deadline ? `📅 Deadline: ${fmtDate(g.deadline)}` : '',
+      g.duration ? `⏱️ ${g.duration}` : '',
       g.budget   ? `💰 ${g.budget}` : '',
       g.programme ? `🏛️ ${g.programme}` : '',
       g.typeOfAction ? `⚗️ ${g.typeOfAction}` : '',
     ].filter(Boolean).join(' &nbsp;·&nbsp; ');
-
-    const fullDesc = g.fullDescription || desc;
 
     return `<details class="acc-item">
       <summary class="acc-row">

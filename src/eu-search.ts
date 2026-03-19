@@ -267,6 +267,7 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
   const programme    = (meta.frameworkProgramme ?? [])[0] ?? identifier.split('-')[0] ?? '';
   const budget       = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
   const description  = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
+  const contentText  = (item.content ?? '').replace(/<[^>]+>/g, '').substring(0, 3000);
   const metaKws      = meta.keywords ?? [];
   // typesOfAction lives in the search metadata — read it here so the type filter
   // works without needing to crawl the individual grant page.
@@ -310,6 +311,7 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
     programme,
     budget,
     description,
+    fullDescription: contentText.length > description.length ? contentText : undefined,
     typeOfAction,
     detailUrl,
     portalUrl,
@@ -376,7 +378,7 @@ async function crawlGrantPage(result: SearchResult): Promise<Partial<SearchResul
     };
 
     const title        = str('title') || result.title;
-    const fullDesc     = str('objective', 'description').substring(0, 3000);
+    const fullDesc     = str('objective', 'description', 'scope', 'summary', 'topicDescription', 'content').substring(0, 3000);
     const openDate     = str('startDate', 'submissionStartDate', 'openDate') || result.openDate;
     const deadline     = str('deadlineDate', 'deadline0') || result.deadline;
     const duration     = str('projectDuration', 'duration');

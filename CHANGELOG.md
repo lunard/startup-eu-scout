@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0] — 2026-03-19
+
+### Fixed
+- **Grant descriptions** — accordion detail now shows the full description (up to 3000 chars) from the crawled grant page, not just the 300-char search API snippet.
+- **Crawl coverage** — grant detail crawl now tries additional fields (`scope`, `summary`, `topicDescription`, `content`) for grants that don't use `objective`/`description`.
+- **Pre-crawl fallback** — search API `content` field (HTML stripped) is stored as `fullDescription` so grants have meaningful text even before the detail crawl.
+- **Accordion dates** — formatted as human-readable dates instead of raw ISO timestamps.
+
+### Added
+- **Duration** field shown in accordion grant details.
+- Accordion text filter now searches across the full description.
+
 ## [0.6.0] — 2026-03-19
 
 ### Added
