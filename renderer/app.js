@@ -239,7 +239,7 @@ function renderProfileData(profile, fromCache) {
         { label: 'Page Title', value: profile.pageTitle || '—', full: true },
         { label: 'Description', value: profile.description || '—', full: true }
     ];
-    $('profileGrid').innerHTML = fields.map(f => `
+    $('profileGrid').innerHTML = fields.filter(f => f.value && f.value !== '—').map(f => `
     <div class="data-item${f.full ? ' full' : ''}" style="${f.full ? 'grid-column:1/-1' : ''}">
       <div class="data-label">${f.label}</div>
       <div class="data-value${!f.value || f.value === '—' ? ' empty' : ''}">${escHtml(f.value)}</div>
