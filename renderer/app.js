@@ -240,9 +240,9 @@ function renderProfileData(profile, fromCache) {
         { label: 'Description', value: profile.description || '—', full: true }
     ];
     $('profileGrid').innerHTML = fields.filter(f => f.value && f.value !== '—').map(f => `
-    <div class="data-item${f.full ? ' full' : ''}" style="${f.full ? 'grid-column:1/-1' : ''}">
-      <div class="data-label">${f.label}</div>
-      <div class="data-value${!f.value || f.value === '—' ? ' empty' : ''}">${escHtml(f.value)}</div>
+    <div class="data-item">
+      <span class="data-label">${f.label}:</span>
+      <span class="data-value">${escHtml(f.value)}</span>
     </div>
   `).join('');
     toggle('fromCacheBadge', fromCache);
