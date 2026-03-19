@@ -37,6 +37,7 @@
   "build": {
     "appId": "com.eu-match.app",
     "productName": "EU-Match",
+    "artifactName": "eu-match-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
