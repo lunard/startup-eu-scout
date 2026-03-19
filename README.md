@@ -4,49 +4,47 @@
 
 EU-Match is a desktop app that combines company profiling, the official EU Funding & Tenders API, and AI deep-research to discover, filter, and rank the best European funding opportunities for your startup.
 
-> **How it works:** Enter your company name → the app builds a European profile → searches hundreds of EU grants → an AI agent reads work programme documents, checks eligibility, and ranks the top 15 best-fit opportunities with detailed explanations.
-
-<!-- screenshots -->
+> **How it works:** Enter your company name → the app builds a European profile → searches hundreds of EU grants → an AI agent reads work programme documents, checks eligibility, and ranks the top best-fit opportunities with detailed explanations.
 
 ---
 
 ## ✨ Key Features
 
 ### 🏢 Automatic Startup Profiling
-Enter your company name and website. EU-Match fetches data from public business registers (OpenCorporates) and scrapes your website to build a structured company profile — sector, technologies, target market, and mission.
+Enter your company name and website. EU-Match fetches data from public business registers and scrapes your website to build a structured company profile.
 
-### 🤖 AI Deep Analysis
-The app uses [GitHub Copilot CLI](https://github.com/github/gh-copilot) (Claude Opus recommended) to:
-- Generate a **European profile** summarising your startup's fit for EU programmes
-- Extract **search keywords** tailored to EU funding taxonomy
-- **Research each grant** — reading work programme PDFs, verifying scope, eligibility, TRL levels, budget, and consortium requirements
-- **Rank the top 15** best-fit grants with a score (0–100) and a plain-language explanation of why your startup is a good match
+![Startup Profile](assets/screenshots/startup-profile.png)
 
-### 📋 Smart Grant Discovery
-- Searches the official **EU Funding & Tenders Portal API** (Horizon Europe, EIC, Digital Europe, COSME, LIFE, EIT…)
-- Fetches up to **100 grants** per search across keyword-relevance and programme-browse queries
-- Enriches each grant with full descriptions (Expected Outcome, Scope), dates, budget, and type of action
-- **Filter by** programme, status (open/forthcoming/closed), type of action, and language
+### 🤖 AI-Generated EU Summary
+Copilot analyses your profile and generates a structured EU summary — key technologies, target market, relevant programmes, strengths, and search keywords.
 
-### 🎯 Interactive Grant Selection
-Before the AI analysis starts, you see all found grants in a **checklist accordion** where you can:
-- Read the full formatted description (paragraphs, bullet lists, bold headings)
-- Filter grants by text search (with live highlighting)
-- Select/deselect which grants to analyse
-- Copy any grant ID with one click (📋)
-- Open any grant directly in the EU Portal
+![EU Summary](assets/screenshots/eu-summary.png)
 
-### 🔍 Live Analysis Stream
-Watch the AI reasoning in real-time in a dark terminal panel — see which work programmes it's searching, which documents it's reading, and how it evaluates each grant.
+### 📋 Smart Grant Discovery & Filtering
+Search the official EU Funding & Tenders Portal API with granular filters: programme, status, type of action, and funding period. Review results in an interactive accordion with full descriptions.
 
-### 🎯 Direct Grant ID Lookup
-Already know a grant ID? Paste it (e.g. `HORIZON-CL2-2026-01-DEMOCRACY-05`) and skip all filters — the AI runs a deep analysis on that single grant.
+![Filter Configuration](assets/screenshots/eu-match-filter-example.png)
 
-### 💾 Profile Management
-- Profiles are cached locally — switch between startups instantly
-- Auto-resumes your last selected startup on launch
-- Delete profiles from history with a single click
-- "Nuova Startup" button resets everything for a fresh start
+![Filtered Results Ready for AI](assets/screenshots/eu-match-filtering-before-ai-search.png)
+
+### 🧠 Opus Deep Analysis
+The AI reads work programme documents, checks eligibility, TRL levels, budget, and consortium requirements — then ranks grants with a score and a plain-language explanation.
+
+![Deep Analysis in Progress](assets/screenshots/opus-deep-analysis-for-rank-grants.png)
+
+![Deep Analysis Continued](assets/screenshots/opus-deep-analysis-for-rank-grants-continue.png)
+
+### 🎯 Ranked Results
+Top opportunities are displayed with fit scores and justifications tailored to your startup.
+
+![Ranked Grant Results](assets/screenshots/grants-result-that-fits-the-startup.png)
+
+### ⚙️ Settings & Logs
+Configure Copilot CLI path, manage EU Login credentials, and inspect the full application log.
+
+![Settings](assets/screenshots/settings.png)
+
+![Application Log](assets/screenshots/log-example.png)
 
 ---
 
@@ -57,7 +55,6 @@ Already know a grant ID? Paste it (e.g. `HORIZON-CL2-2026-01-DEMOCRACY-05`) and 
 1. **Node.js ≥ 18** — [download](https://nodejs.org/)
 2. **GitHub CLI** with the Copilot extension:
    ```bash
-   # Install GitHub CLI: https://cli.github.com/
    gh auth login
    gh extension install github/gh-copilot
    ```
@@ -91,23 +88,19 @@ Go to [**Releases**](https://github.com/lunard/startup-eu-scout/releases) and do
 ## 📖 How to Use
 
 ### Step 1 — Profile Your Startup
-1. Open the **Profilo Startup** tab
-2. Enter your **Ragione Sociale** (company name) and optionally a website URL
-3. Click **🔍 Profila Startup** — the app fetches public data and caches it
+Enter your company name and optionally a website URL. Click **Profile Startup** — the app fetches public data and caches it locally.
 
-### Step 2 — Generate the EU Profile
-1. Switch to the **Scheda EU** tab
-2. Click **🤖 Genera Scheda EU con Copilot**
-3. The AI generates a structured European profile and extracts search keywords
-4. Edit keywords if needed — add or remove tags to fine-tune the search
+### Step 2 — Generate the EU Summary
+Click **Generate EU Summary with Copilot**. The AI produces a structured European profile and extracts search keywords. Edit keywords as needed to fine-tune the search.
 
-### Step 3 — Search & Rank Grants
-1. Go to the **Grants** tab
-2. Set your filters (programme, status, type of action)
-3. Click **🔍 Search Grants** — the app queries the EU API and enriches results
-4. Review the grant accordion — select which grants to analyse
-5. Click **🚀 Start Opus Deep Analysis** — watch the AI research and rank grants in real-time
-6. The top 15 results appear with ratings, explanations, and direct links to the EU Portal
+### Step 3 — Search & Filter Grants
+Set your filters (programme, status, type of action) and click **Search Grants**. The app queries the EU API, deduplicates results, and enriches each grant with full descriptions.
+
+### Step 4 — AI-Powered Ranking
+Select which grants to analyse from the accordion, then click **Start Opus Deep Analysis**. Watch the AI research each grant in real-time and receive ranked results with fit scores.
+
+### Direct Grant Lookup
+Already know a grant ID? Paste it (e.g. `HORIZON-CL2-2026-01-DEMOCRACY-05`) and skip all filters — the AI runs a deep analysis on that single grant.
 
 ---
 
@@ -139,7 +132,7 @@ src/
 ├── storage.ts             # electron-store profile cache + settings
 ├── credential-manager.ts  # safeStorage (Keychain/DPAPI)
 ├── startup-profiler.ts    # OpenCorporates API + cheerio web scraping
-├── copilot-bridge.ts      # Copilot CLI integration (scheda, ranking, analysis)
+├── copilot-bridge.ts      # Copilot CLI integration (summary, ranking, analysis)
 ├── eu-search.ts           # EU Funding & Tenders API (search + crawl)
 └── eu-auth.ts             # EU Login credential testing
 renderer/
@@ -153,5 +146,5 @@ renderer/
 
 ## 📝 License
 
-MIT — see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](LICENSE).
 
