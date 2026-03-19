@@ -267,7 +267,13 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
   const programme    = (meta.frameworkProgramme ?? [])[0] ?? identifier.split('-')[0] ?? '';
   const budget       = (meta.totalBudget ?? meta.budget ?? [])[0] ?? '';
   const description  = ((meta.description ?? [])[0] || (item.content ?? '').replace(/<[^>]+>/g, '')).substring(0, 300);
-  const contentText  = (item.content ?? '').replace(/<[^>]+>/g, '').substring(0, 3000);
+
+  // descriptionByte contains the full grant description (Expected Outcome + Scope) as HTML
+  const descriptionByte = ((meta.descriptionByte ?? [])[0] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // destinationDetails is even longer context about the programme destination
+  const destDetails     = ((meta.destinationDetails ?? [])[0] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // Use the richest description available
+  const fullDescFromMeta = descriptionByte || destDetails || (item.content ?? '').replace(/<[^>]+>/g, '').trim();
   const metaKws      = meta.keywords ?? [];
   // typesOfAction lives in the search metadata — read it here so the type filter
   // works without needing to crawl the individual grant page.
@@ -311,7 +317,7 @@ function normalizeResult(item: RawHit, queryKeywords: string[], isClosed = false
     programme,
     budget,
     description,
-    fullDescription: contentText.length > description.length ? contentText : undefined,
+    fullDescription: fullDescFromMeta.length > description.length ? fullDescFromMeta.substring(0, 5000) : undefined,
     typeOfAction,
     detailUrl,
     portalUrl,
@@ -351,17 +357,34 @@ export async function enrichGrantDetails(results: SearchResult[]): Promise<Searc
     const slice = enriched.slice(i, i + BATCH);
     const details = await Promise.all(slice.map(r => crawlGrantPage(r)));
     for (let j = 0; j < slice.length; j++) {
-      enriched[i + j] = { ...enriched[i + j], ...details[j] };
+      // Only overwrite fields that the crawl actually found (non-empty)
+      const crawled = details[j];
+      const base = enriched[i + j];
+      enriched[i + j] = {
+        ...base,
+        ...crawled,
+        // Keep the best fullDescription: prefer longer of crawl vs metadata
+        fullDescription: longerOf(crawled.fullDescription, base.fullDescription),
+      };
     }
   }
   return enriched;
 }
 
+function longerOf(a?: string, b?: string): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return a.length >= b.length ? a : b;
+}
+
 async function crawlGrantPage(result: SearchResult): Promise<Partial<SearchResult>> {
-  const url = result.detailUrl;
-  if (!url) return {};
+  // Try the proper JSON data endpoint for topic details
+  const id = result.id;
+  if (!id) return {};
+
+  const jsonUrl = `https://ec.europa.eu/info/funding-tenders/opportunities/data/topicDetails/${id}.json`;
   try {
-    const res = await axios.get<GrantDetailJson>(url, {
+    const res = await axios.get<GrantDetailJson>(jsonUrl, {
       timeout: 12000,
       headers: { 'Accept': 'application/json', 'User-Agent': 'EU-Match/0.2' }
     });
@@ -371,26 +394,24 @@ async function crawlGrantPage(result: SearchResult): Promise<Partial<SearchResul
       for (const k of keys) {
         const v = d[k];
         if (v && typeof v === 'string' && v.trim()) return v.trim();
-        // Some EU API fields return arrays — take the first non-empty element
         if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && v[0].trim()) return v[0].trim();
       }
       return '';
     };
 
     const title        = str('title') || result.title;
-    const fullDesc     = str('objective', 'description', 'scope', 'summary', 'topicDescription', 'content').substring(0, 3000);
+    const fullDescRaw  = str('objective', 'description', 'scope', 'summary', 'topicDescription', 'content');
+    const fullDesc     = fullDescRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 5000);
     const openDate     = str('startDate', 'submissionStartDate', 'openDate') || result.openDate;
     const deadline     = str('deadlineDate', 'deadline0') || result.deadline;
     const duration     = str('projectDuration', 'duration');
     const budget       = str('budgetTopicAction', 'totalBudget', 'budget') || result.budget;
     const programme    = str('frameworkProgramme', 'programmeName') || result.programme;
-
-    // typeOfAction: EU JSON may use singular string, array, or nested object.
-    // Try multiple field names and extract the first usable string value.
     const typeOfAction = str('typeOfAction', 'typeOfActions', 'actions', 'actionType', 'legalBasis');
 
-    return { title, fullDescription: fullDesc, openDate, deadline, duration, typeOfAction, budget, programme };
+    return { title, fullDescription: fullDesc || undefined, openDate, deadline, duration, typeOfAction, budget, programme };
   } catch {
+    // JSON endpoint not available (404) — fullDescription stays from metadata
     return {};
   }
 }

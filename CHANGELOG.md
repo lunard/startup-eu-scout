@@ -3,9 +3,9 @@
 ## [0.7.0] — 2026-03-19
 
 ### Fixed
-- **Grant descriptions** — accordion detail now shows the full description (up to 3000 chars) from the crawled grant page, not just the 300-char search API snippet.
-- **Crawl coverage** — grant detail crawl now tries additional fields (`scope`, `summary`, `topicDescription`, `content`) for grants that don't use `objective`/`description`.
-- **Pre-crawl fallback** — search API `content` field (HTML stripped) is stored as `fullDescription` so grants have meaningful text even before the detail crawl.
+- **Grant descriptions** — full descriptions now extracted from `descriptionByte` metadata field (Expected Outcome + Scope, 3000–6000+ chars), instead of relying on the short 300-char `description` or the often-empty `content` field.
+- **Crawl endpoint** — grant detail crawl now uses the correct JSON data URL (`/data/topicDetails/{id}.json`) instead of the HTML portal page URL that returned unparseable responses.
+- **Description merging** — enrichment keeps the longer of crawl vs metadata descriptions, so no data is lost.
 - **Accordion dates** — formatted as human-readable dates instead of raw ISO timestamps.
 
 ### Added
