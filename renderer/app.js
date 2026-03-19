@@ -161,6 +161,8 @@ async function loadCachedProfile(ragioneSociale) {
         $('websiteUrl').value = cached.url ?? '';
         state.currentProfile = cached;
         renderProfileData(cached, true);
+        // Remember last selected profile
+        await window.euMatch.saveSettings({ lastProfile: ragioneSociale });
     }
 }
 async function buildProfile(ragioneSociale, url) {
@@ -190,6 +192,7 @@ async function buildProfile(ragioneSociale, url) {
         state.currentProfile = profile;
         renderProfileData(profile, profile.fromCache);
         await renderRecentProfiles();
+        await window.euMatch.saveSettings({ lastProfile: ragioneSociale });
     }
     catch (err) {
         appendLog({ icon: '❌', msg: err.message });
@@ -302,8 +305,46 @@ function renderScheda(schedaText, keywords) {
     show('btnDownloadMd');
     $('btnDownloadMd').dataset.content = schedaText;
     if (keywords && keywords.length > 0) {
-        $('keywordsList').innerHTML = keywords.map(kw => `<span class="keyword-chip">${escHtml(kw)}</span>`).join('');
+        renderKeywords(keywords);
         show('keywordsCard');
+    }
+}
+function renderKeywords(keywords) {
+    const chips = keywords.map((kw, i) => `<span class="keyword-chip" data-kw-index="${i}">${escHtml(kw)}<button class="kw-remove" data-kw-index="${i}" title="Remove">×</button></span>`).join('');
+    $('keywordsList').innerHTML = chips +
+        `<span class="keyword-add-wrap">
+       <input type="text" class="kw-add-input" id="kwAddInput" placeholder="+ add keyword" />
+     </span>`;
+    // Remove keyword on × click
+    $('keywordsList').querySelectorAll('.kw-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.kwIndex ?? '-1');
+            if (idx >= 0 && idx < state.keywords.length) {
+                state.keywords.splice(idx, 1);
+                renderKeywords(state.keywords);
+                persistKeywords();
+            }
+        });
+    });
+    // Add keyword on Enter
+    const addInput = $('kwAddInput');
+    addInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const val = addInput.value.trim();
+            if (val && !state.keywords.includes(val)) {
+                state.keywords.push(val);
+                renderKeywords(state.keywords);
+                persistKeywords();
+            }
+            addInput.value = '';
+        }
+    });
+}
+async function persistKeywords() {
+    const name = state.currentProfile?.ragioneSociale;
+    if (name) {
+        await window.euMatch.updateProfile(name, { keywords: state.keywords });
     }
 }
 // ─── Sub-tab switching ─────────────────────────────────────────────────────────
@@ -697,5 +738,11 @@ $('websiteUrl').addEventListener('blur', async () => {
 (async function init() {
     await loadSettings();
     await renderRecentProfiles();
+    // Auto-select last used profile
+    const settings = await window.euMatch.getSettings();
+    if (settings.lastProfile) {
+        $('ragioneSociale').value = settings.lastProfile;
+        await loadCachedProfile(settings.lastProfile);
+    }
     await runHealthCheck();
 })();

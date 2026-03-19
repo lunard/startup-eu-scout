@@ -18,6 +18,7 @@ export interface ProfileData {
 export interface AppSettings {
   copilotPath?: string;
   defaultModel?: string;
+  lastProfile?: string;
 }
 
 export interface HealthCheckResult {

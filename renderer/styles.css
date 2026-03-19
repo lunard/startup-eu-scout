@@ -231,9 +231,42 @@ body {
   color: #fff;
   font-size: 12px;
   font-weight: 600;
-  padding: 4px 12px;
+  padding: 4px 8px 4px 12px;
   border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
+.kw-remove {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 3px;
+  border-radius: 50%;
+  transition: color .15s, background .15s;
+}
+.kw-remove:hover { color: #fff; background: rgba(255,255,255,0.2); }
+.keyword-add-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.kw-add-input {
+  border: 1.5px dashed var(--eu-blue);
+  background: transparent;
+  color: var(--eu-blue);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 99px;
+  outline: none;
+  width: 130px;
+  transition: border-color .15s;
+}
+.kw-add-input::placeholder { color: var(--eu-blue); opacity: 0.6; }
+.kw-add-input:focus { border-color: var(--eu-gold); }
 
 /* ─── Grant Results ──────────────────────────────────── */
 .results-header {

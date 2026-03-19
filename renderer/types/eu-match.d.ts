@@ -21,6 +21,7 @@ declare global {
   interface AppSettings {
     copilotPath?: string;
     defaultModel?: string;
+    lastProfile?: string;
   }
 
   interface SearchResult {

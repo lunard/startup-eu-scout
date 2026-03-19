@@ -25,7 +25,8 @@ const profileSchema = {
     type: 'object',
     properties: {
       copilotPath: { type: 'string', default: '' },
-      defaultModel: { type: 'string', default: 'claude-opus-4.6' }
+      defaultModel: { type: 'string', default: 'claude-opus-4.6' },
+      lastProfile: { type: 'string', default: '' }
     },
     default: {}
   }
