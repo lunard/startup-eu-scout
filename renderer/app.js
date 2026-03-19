@@ -507,8 +507,8 @@ async function searchGrants() {
             $('grantCount').classList.remove('hidden');
             return;
         }
-        // ── Phase 3: Opus ranking — single call picks top 5 from all filtered grants ──
-        const TOP_N = 5;
+        // ── Phase 3: Opus ranking — single call picks top 15 from all filtered grants ──
+        const TOP_N = 15;
         if (!ragioneSociale) {
             // No startup profile → show grants sorted by keyword score, no Copilot analysis
             const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);

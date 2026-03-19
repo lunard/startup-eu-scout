@@ -223,13 +223,13 @@ ${schedaEU ? `\nEU Summary Sheet:\n${schedaEU.substring(0, 2500)}` : ''}
 ${grantSummaries}
 
 ## Your Task
-Analyse ALL ${grants.length} opportunities above against the startup profile. Select the TOP 5 grants that are the BEST fit for this startup as a partner or coordinator.
+Analyse ALL ${grants.length} opportunities above against the startup profile. Select the TOP 15 grants that are the BEST fit for this startup as a partner or coordinator.
 
-For each of the 5 selected grants, provide:
+For each of the 15 selected grants, provide:
 - **rating**: integer 0–100 (how well the startup fits this grant)
 - **explanation**: 2-3 sentences explaining WHY this startup is a good fit for this specific grant. Be concrete — mention specific startup capabilities that match grant requirements.
 
-Reply ONLY with a JSON array of exactly 5 objects, ordered from best to worst fit. Use this exact format:
+Reply ONLY with a JSON array of exactly 15 objects, ordered from best to worst fit. Use this exact format:
 \`\`\`json
 [
   { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 85, "explanation": "..." },
@@ -270,7 +270,7 @@ export async function rankOpportunities(
 
     const rankings = parsed
       .filter(item => item.id && typeof item.rating === 'number')
-      .slice(0, 5)
+      .slice(0, 15)
       .map(item => ({
         id: item.id!,
         title: item.title ?? '',
