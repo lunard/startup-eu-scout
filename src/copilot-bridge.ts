@@ -210,10 +210,11 @@ function buildRankingPrompt(profile: ProfileData | null, schedaEU: string, grant
 Title: ${g.title}
 Programme: ${g.programme || 'N/A'} | Type: ${g.typeOfAction || 'N/A'}
 Deadline: ${g.deadline || 'N/A'} | Budget: ${g.budget || 'N/A'}
+Portal: ${g.portalUrl}
 Description: ${desc}`;
   }).join('\n\n');
 
-  return `You are a senior European funding expert. You must select the 5 BEST grant opportunities for this startup from the list below.
+  return `You are a senior European funding consultant performing an in-depth grant scouting analysis.
 
 ## Startup Profile
 Company: ${ragioneSociale}
@@ -222,25 +223,41 @@ ${schedaEU ? `\nEU Summary Sheet:\n${schedaEU.substring(0, 2500)}` : ''}
 ## Available Grant Opportunities (${grants.length} total)
 ${grantSummaries}
 
-## Your Task
-Analyse ALL ${grants.length} opportunities above against the startup profile. Select the TOP 15 grants that are the BEST fit for this startup as a partner or coordinator.
+## Your Task — INTENSIVE ANALYSIS
 
-For each of the 15 selected grants, provide:
-- **rating**: integer 0–100 (how well the startup fits this grant)
-- **explanation**: 2-3 sentences explaining WHY this startup is a good fit for this specific grant. Be concrete — mention specific startup capabilities that match grant requirements.
+You have access to web search tools. Use them.
 
-Reply ONLY with a JSON array of exactly 15 objects, ordered from best to worst fit. Use this exact format:
+### Step 1 — Quick screening
+Quickly scan all ${grants.length} grants above. Discard those that are clearly irrelevant to the startup. Identify the ~20-25 most promising candidates.
+
+### Step 2 — Deep research (CRITICAL)
+For each promising candidate, **use web search** to:
+- Find and read the official **Work Programme PDF** or **topic page** on the EU Portal / Horizon Europe NCP Portal
+- Extract the **full scope**, **expected outcomes**, and **eligibility conditions**
+- Verify the **budget per project**, **number of projects funded**, **type of action** (RIA/IA/CSA/EIC)
+- Check if the startup's profile, size (SME), technology, and sector genuinely match the call requirements
+- Look for specific requirements (consortium size, geographic spread, TRL level, mandatory partners)
+
+### Step 3 — Final ranking
+From your deep research, select the TOP 15 grants that are the BEST fit for "${ragioneSociale}".
+
+For each grant provide:
+- **rating**: integer 0–100 based on real eligibility and scope match (not just keyword overlap)
+- **explanation**: 3-4 sentences with CONCRETE evidence from the work programme. Mention specific scope elements that match the startup's capabilities. Flag any risks or conditions.
+
+After your analysis, output a JSON array of exactly 15 objects, ordered from best to worst fit:
 \`\`\`json
 [
   { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 85, "explanation": "..." },
-  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 72, "explanation": "..." },
-  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 68, "explanation": "..." },
-  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 55, "explanation": "..." },
-  { "id": "GRANT-ID-HERE", "title": "Grant title", "rating": 40, "explanation": "..." }
+  ...
 ]
 \`\`\`
 
-IMPORTANT: Use the exact grant IDs from the list above. Output ONLY the JSON array, nothing else.`;
+IMPORTANT:
+- Use the exact grant IDs from the list above
+- The JSON array must be the LAST thing you output, after all your analysis
+- Be HONEST: if a grant looks good on keywords but the actual scope doesn't match, rate it low
+- Prefer grants where the startup can realistically participate (correct TRL, sector, consortium role)`;
 }
 
 export async function rankOpportunities(

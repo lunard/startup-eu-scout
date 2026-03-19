@@ -3,7 +3,7 @@ import type { SearchResult, SearchResponse } from './types';
 
 const EU_SEARCH_BASE  = 'https://api.tech.ec.europa.eu/search-api/prod/rest/search';
 const EU_TENDERS_BASE = 'https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search';
-const DEFAULT_PAGE_SIZE = 60;
+const DEFAULT_PAGE_SIZE = 100;
 
 const PROGRAMME_BOOST: Record<string, string> = {
   'HORIZON': 'Horizon Europe research innovation',

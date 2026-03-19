@@ -581,11 +581,10 @@ async function searchGrants(): Promise<void> {
       return;
     }
 
-    // ── Phase 3: Opus ranking — single call picks top 15 from all filtered grants ──
+    // ── Phase 3: Opus deep analysis — web-researched ranking of top 15 ──
     const TOP_N = 15;
 
     if (!ragioneSociale) {
-      // No startup profile → show grants sorted by keyword score, no Copilot analysis
       const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
       const top = sorted.slice(0, TOP_N);
       state.grantResults = top;
@@ -596,52 +595,67 @@ async function searchGrants(): Promise<void> {
       return;
     }
 
-    setLoadingMsg(`🤖 Step 3/3 — Opus is selecting the top ${TOP_N} best-fit grants from ${typeFiltered.length} opportunities...`);
-    appLog('copilot', `Opus ranking: analysing ${typeFiltered.length} grants — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction}`);
+    setLoadingMsg(`🧠 Step 3/3 — Opus deep analysis: researching ${typeFiltered.length} grants with web search...`);
+    appLog('copilot', `Opus deep analysis: ${typeFiltered.length} grants — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction}`);
 
-    const rankRes = await window.euMatch.rankOpportunities(typeFiltered, ragioneSociale);
-    if (aborted()) { hide('grantsLoading'); return; }
+    // Show streaming output
+    const streamEl = $('opusStreamOutput');
+    streamEl.textContent = '';
+    show('opusStreamCard');
 
-    if (!rankRes.ok || !rankRes.rankings || rankRes.rankings.length === 0) {
-      appLog('error', `Opus ranking failed: ${rankRes.error ?? 'no results'}`);
-      // Fallback: show by keyword score
-      const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
-      const top = sorted.slice(0, TOP_N);
-      state.grantResults = top;
-      hide('grantsLoading');
-      renderGrants(top, res.total ?? 0, false);
-      $('grantCount').textContent = TOP_N.toString();
-      $('grantCount').classList.remove('hidden');
-      return;
-    }
+    window.euMatch.onCopilotChunk((text: string) => {
+      streamEl.textContent += text;
+      streamEl.scrollTop = streamEl.scrollHeight;
+    });
 
-    appLog('success', `Opus ranking complete — top ${rankRes.rankings.length} grants selected.`);
+    try {
+      const rankRes = await window.euMatch.rankOpportunities(typeFiltered, ragioneSociale);
+      if (aborted()) { hide('grantsLoading'); hide('opusStreamCard'); return; }
 
-    // Map rankings back to full grant data, preserving Opus order
-    const grantById = new Map(typeFiltered.map(g => [g.id, g]));
-    const top5: SearchResult[] = [];
-    for (const r of rankRes.rankings) {
-      const grant = grantById.get(r.id);
-      if (grant) {
-        grant.fitScore = r.rating;
-        state.grantAnalyses[r.id] = {
-          analysis: r.explanation,
-          savedAt: new Date().toISOString(),
-          fitScore: r.rating
-        };
-        top5.push(grant);
+      if (!rankRes.ok || !rankRes.rankings || rankRes.rankings.length === 0) {
+        appLog('error', `Opus ranking failed: ${rankRes.error ?? 'no results'}`);
+        const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
+        const top = sorted.slice(0, TOP_N);
+        state.grantResults = top;
+        hide('grantsLoading');
+        hide('opusStreamCard');
+        renderGrants(top, res.total ?? 0, false);
+        $('grantCount').textContent = TOP_N.toString();
+        $('grantCount').classList.remove('hidden');
+        return;
       }
-    }
 
-    state.grantResults = top5;
-    hide('grantsLoading');
-    renderGrants(top5, res.total ?? 0, false);
-    $('grantCount').textContent = top5.length.toString();
-    $('grantCount').classList.remove('hidden');
+      appLog('success', `Opus deep analysis complete — top ${rankRes.rankings.length} grants selected.`);
+      hide('opusStreamCard');
+
+      const grantById = new Map(typeFiltered.map(g => [g.id, g]));
+      const topN: SearchResult[] = [];
+      for (const r of rankRes.rankings) {
+        const grant = grantById.get(r.id);
+        if (grant) {
+          grant.fitScore = r.rating;
+          state.grantAnalyses[r.id] = {
+            analysis: r.explanation,
+            savedAt: new Date().toISOString(),
+            fitScore: r.rating
+          };
+          topN.push(grant);
+        }
+      }
+
+      state.grantResults = topN;
+      hide('grantsLoading');
+      renderGrants(topN, res.total ?? 0, false);
+      $('grantCount').textContent = topN.length.toString();
+      $('grantCount').classList.remove('hidden');
+    } finally {
+      window.euMatch.removeCopilotChunkListener();
+    }
 
   } catch (err) {
-    if (aborted()) { hide('grantsLoading'); return; }
+    if (aborted()) { hide('grantsLoading'); hide('opusStreamCard'); return; }
     hide('grantsLoading');
+    hide('opusStreamCard');
     $('grantResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml((err as Error).message)}</div>`;
     appLog('error', `Search error: ${(err as Error).message}`);
   } finally {
