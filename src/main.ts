@@ -24,8 +24,7 @@ function createWindow(): void {
     height: 1040,
     minWidth: 941,
     minHeight: 780,
-    fullscreen: true,
-    title: 'EU-Match — Scouting Finanziamenti Europei',
+    title: 'EU-Match — European Funding Scout',
     icon: path.join(__dirname, '..', 'assets', process.platform === 'darwin' ? 'icon.icns' : 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -35,6 +34,7 @@ function createWindow(): void {
     }
   });
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  mainWindow.maximize();
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
