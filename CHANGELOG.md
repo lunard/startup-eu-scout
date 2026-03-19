@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0] — 2026-03-19
+
+### Added
+- **Windows NSIS installer** — `npm run build:win` produces a full installer (`x64`) with custom install directory, desktop shortcut, and uninstaller.
+- **Linux AppImage** — `npm run build:linux` produces a portable AppImage (`x64`), no installation required.
+- **Windows ICO icon** — generated multi-size `.ico` (16–256px) for NSIS installer.
+- All `dist` scripts now run `npm run build` automatically before packaging.
+
 ## [0.8.0] — 2026-03-19
 
 ### Added

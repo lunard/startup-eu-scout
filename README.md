@@ -31,9 +31,12 @@ npm start
 
 ## Build
 ```bash
-npm run build:mac   # macOS DMG
-npm run build:win   # Windows NSIS installer
+npm run build:mac    # macOS DMG
+npm run build:win    # Windows NSIS installer (x64)
+npm run build:linux  # Linux AppImage (x64)
 ```
+
+Output goes to `release/`.
 
 ## Project Structure
 ```

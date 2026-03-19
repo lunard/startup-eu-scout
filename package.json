@@ -1,15 +1,16 @@
 {
   "name": "eu-match",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "AI-powered Electron app for EU funding scouting using Copilot CLI",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json",
     "start": "npm run build && electron .",
     "dev": "npm run build && electron .",
-    "dist": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win"
+    "dist": "npm run build && electron-builder",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:win": "npm run build && electron-builder --win",
+    "build:linux": "npm run build && electron-builder --linux"
   },
   "keywords": [
     "electron",
@@ -46,7 +47,28 @@
     },
     "win": {
       "icon": "assets/icon.png",
-      "target": "nsis"
+      "target": {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "shortcutName": "EU-Match"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Office",
+      "target": {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      "synopsis": "AI-powered EU funding scout",
+      "description": "Discover and rank EU funding opportunities for your startup using Copilot AI deep analysis."
     },
     "files": [
       "dist/**/*",
