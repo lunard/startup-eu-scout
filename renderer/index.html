@@ -153,8 +153,8 @@
 
     <!-- ══ TAB: BANDI ════════════════════════════════════ -->
     <section class="tab-panel" id="tab-grants">
-      <div class="card">
-        <div class="card-title">📋 EU Grant Search</div>
+      <details class="card filter-card" id="filterCard" open>
+        <summary class="card-title filter-toggle">📋 EU Grant Search</summary>
         <div class="form-row">
           <div class="form-group">
             <label>Periodo Finanziario</label>
@@ -237,15 +237,17 @@
 
         <div class="btn-group">
           <button class="btn btn-primary" id="btnSearch">
-            <span>🔎</span> Refresh Search
+            <span>🔎</span> Search Grants
           </button>
         </div>
-      </div>
+      </details>
 
       <div class="loading-row hidden" id="grantsLoading">
         <div class="spinner"></div>
         <span id="grantsLoadingMsg">Querying EU Funding &amp; Tenders API...</span>
       </div>
+
+      <div id="grantAccordionArea"></div>
 
       <div class="hidden" id="opusStreamCard">
         <div class="card opus-stream-card">

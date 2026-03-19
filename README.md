@@ -8,7 +8,7 @@ AI-powered **Electron desktop app** that automates EU funding discovery for star
 - 📋 **Smart Grant Ranking** — single Opus call analyses all filtered grants and returns the top 15 best-fit opportunities with ratings and explanations
 - 🔍 **Live Analysis Stream** — watch Opus reasoning in real-time as it searches work programmes and evaluates grants
 - 🎯 **Direct Grant Analysis** — paste a specific grant ID to skip all filters and run Opus deep analysis on that single grant
-- 📋 **Grant Accordion** — collapsible list of all grants entering analysis, with text filter to search by ID/title/description
+- 📋 **Grant Accordion** — collapsible checklist of all grants with select/deselect, text filter with highlighting, expandable details; Opus only runs after you confirm
 - 🏷️ **Editable Keywords** — add/remove search keywords extracted from the AI-generated EU profile
 - 💾 **Auto-Resume** — automatically loads your last selected startup on launch
 - 🔐 **Secure Credentials** — EU Login credentials encrypted via OS Keychain (macOS) / DPAPI (Windows)

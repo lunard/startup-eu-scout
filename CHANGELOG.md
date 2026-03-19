@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0] — 2026-03-19
+
+### Added
+- **Selectable Grant Accordion** — after API search, grants are shown in a checklist with checkboxes (all selected by default). Users can select/deselect individual grants or use "Select all" / "Deselect all" buttons (scope-aware: operates on filtered results when a text filter is active).
+- **Confirm before Opus** — Opus deep analysis only starts when user clicks "🚀 Start Opus Deep Analysis on N grants". Shows live count of checked grants.
+- **Collapsible Filter Card** — the search filters card auto-collapses when search starts, click to re-open.
+- **Text filter with highlight** — search filter in accordion highlights matching text in yellow across ID, title, and description.
+- **Expandable grant rows** — click any row to see full title, description, dates, budget, programme, and EU Portal link.
+
+### Changed
+- Accordion now renders above the Opus stream panel (in `grantAccordionArea`).
+- Direct Grant ID mode skips the accordion confirm flow and analyses immediately.
+
 ## [0.5.0] — 2026-03-19
 
 ### Added

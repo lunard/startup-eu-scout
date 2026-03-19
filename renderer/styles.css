@@ -268,6 +268,13 @@ body {
 .kw-add-input::placeholder { color: var(--eu-blue); opacity: 0.6; }
 .kw-add-input:focus { border-color: var(--eu-gold); }
 
+/* ─── Collapsible Filter Card ────────────────────────── */
+.filter-card { cursor: default; }
+.filter-toggle { cursor: pointer; user-select: none; list-style: none; }
+.filter-toggle::-webkit-details-marker { display: none; }
+.filter-toggle::before { content: '▸ '; font-size: 13px; }
+.filter-card[open] > .filter-toggle::before { content: '▾ '; }
+
 /* ─── Direct Grant ID ────────────────────────────────── */
 .direct-grant-wrap { margin-top: 14px; }
 .direct-grant-wrap > label { font-size: 13px; font-weight: 600; }
@@ -359,7 +366,24 @@ body {
   text-decoration: none;
 }
 .acc-id:hover { text-decoration: underline; color: var(--eu-gold); }
-.acc-label { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-label { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+.acc-check { margin: 0; cursor: pointer; accent-color: var(--eu-blue); flex-shrink: 0; }
+
+.acc-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 8px;
+}
+.acc-toolbar .btn-sm { font-size: 11px; padding: 3px 10px; }
+
+.acc-confirm-wrap {
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  text-align: center;
+}
+.acc-confirm-wrap .btn { font-size: 14px; padding: 8px 24px; }
 
 .acc-item { border-bottom: 1px solid var(--border); }
 .acc-item[open] { background: rgba(0,51,153,0.04); border-radius: 6px; margin: 2px 0; }

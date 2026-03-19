@@ -399,7 +399,7 @@ function linkifyGrantIds(html) {
         return `<a class="stream-grant-link" href="${url}" target="_blank" title="Open in EU Portal">${id}</a>`;
     });
 }
-// ─── Grant Accordion (pre-analysis list) ─────────────────────────────────────
+// ─── Grant Accordion (pre-analysis list with checkboxes) ─────────────────────
 function highlightText(text, query) {
     if (!query)
         return escHtml(text);
@@ -407,72 +407,143 @@ function highlightText(text, query) {
     const qEsc = escHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return escaped.replace(new RegExp(`(${qEsc})`, 'gi'), '<mark class="acc-highlight">$1</mark>');
 }
-function renderGrantAccordion(grants) {
-    // Store grants data for re-rendering on filter
-    window.__accGrants = grants;
-    const buildRows = (q) => {
-        let visible = 0;
-        const html = grants.map((g, i) => {
-            const title = g.title || '';
-            const desc = g.description || '';
-            const searchText = `${g.id} ${title} ${desc}`.toLowerCase();
-            const match = !q || searchText.includes(q);
-            if (!match)
-                return '';
-            visible++;
-            const url = g.portalUrl;
-            const shortLabel = title.substring(0, 100) + (title.length > 100 ? '…' : '');
-            const dates = [
-                g.openDate ? `📂 Opens: ${g.openDate}` : '',
-                g.deadline ? `📅 Deadline: ${g.deadline}` : '',
-                g.budget ? `💰 ${g.budget}` : '',
-                g.programme ? `🏛️ ${g.programme}` : '',
-                g.typeOfAction ? `⚗️ ${g.typeOfAction}` : '',
-            ].filter(Boolean).join(' &nbsp;·&nbsp; ');
-            return `<details class="acc-item">
-        <summary class="acc-row">
-          <span class="acc-num">${i + 1}.</span>
-          <a class="acc-id" href="${escHtml(url)}" target="_blank" title="Open in EU Portal">${highlightText(g.id, q)}</a>
-          <span class="acc-label">${highlightText(shortLabel, q)}</span>
-        </summary>
-        <div class="acc-detail">
-          <div class="acc-detail-title">${highlightText(title, q)}</div>
-          ${dates ? `<div class="acc-detail-meta">${dates}</div>` : ''}
-          ${desc ? `<div class="acc-detail-desc">${highlightText(desc, q)}</div>` : ''}
-          <a class="acc-detail-link" href="${escHtml(url)}" target="_blank">🔗 Open in EU Portal</a>
-        </div>
-      </details>`;
-        }).join('');
-        return { html, visible };
-    };
-    const { html: initialRows, visible: initialVisible } = buildRows('');
-    $('grantResults').innerHTML = `
-    <details class="grant-accordion" open>
-      <summary class="acc-summary">📋 ${grants.length} grants entering Opus analysis</summary>
-      <div class="acc-filter-wrap">
-        <input type="text" class="acc-filter-input" id="accFilterInput" placeholder="🔍 Filter grants…" />
-        <span class="acc-filter-count" id="accFilterCount">${initialVisible} / ${grants.length}</span>
+// Tracks checked grant IDs
+let _accChecked = new Set();
+let _accGrants = [];
+let _accOnConfirm = null;
+function renderGrantAccordion(grants, onConfirm) {
+    _accGrants = grants;
+    _accChecked = new Set(grants.map(g => g.id));
+    _accOnConfirm = onConfirm;
+    rebuildAccordion('');
+}
+function rebuildAccordion(q) {
+    const grants = _accGrants;
+    let visible = 0;
+    const rows = grants.map((g, i) => {
+        const title = g.title || '';
+        const desc = g.description || '';
+        const searchText = `${g.id} ${title} ${desc}`.toLowerCase();
+        const match = !q || searchText.includes(q);
+        if (!match)
+            return '';
+        visible++;
+        const checked = _accChecked.has(g.id) ? 'checked' : '';
+        const url = g.portalUrl;
+        const shortLabel = title.substring(0, 100) + (title.length > 100 ? '…' : '');
+        const dates = [
+            g.openDate ? `📂 Opens: ${g.openDate}` : '',
+            g.deadline ? `📅 Deadline: ${g.deadline}` : '',
+            g.budget ? `💰 ${g.budget}` : '',
+            g.programme ? `🏛️ ${g.programme}` : '',
+            g.typeOfAction ? `⚗️ ${g.typeOfAction}` : '',
+        ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+        return `<details class="acc-item">
+      <summary class="acc-row">
+        <input type="checkbox" class="acc-check" data-gid="${escHtml(g.id)}" ${checked} />
+        <span class="acc-num">${i + 1}.</span>
+        <a class="acc-id" href="${escHtml(url)}" target="_blank" title="Open in EU Portal">${highlightText(g.id, q)}</a>
+        <span class="acc-label">${highlightText(shortLabel, q)}</span>
+      </summary>
+      <div class="acc-detail">
+        <div class="acc-detail-title">${highlightText(title, q)}</div>
+        ${dates ? `<div class="acc-detail-meta">${dates}</div>` : ''}
+        ${desc ? `<div class="acc-detail-desc">${highlightText(desc, q)}</div>` : ''}
+        <a class="acc-detail-link" href="${escHtml(url)}" target="_blank">🔗 Open in EU Portal</a>
       </div>
-      <div class="acc-body" id="accBody">${initialRows}</div>
     </details>`;
-    // Filter on typing — rebuild rows with highlighting
+    }).join('');
+    const checkedCount = _accChecked.size;
+    $('grantAccordionArea').innerHTML = `
+    <details class="card grant-accordion" open>
+      <summary class="acc-summary">📋 ${grants.length} grants found — <strong id="accCheckedCount">${checkedCount}</strong> selected for Opus analysis</summary>
+      <div class="acc-filter-wrap">
+        <input type="text" class="acc-filter-input" id="accFilterInput" placeholder="🔍 Filter grants…" value="${escHtml(q)}" />
+        <span class="acc-filter-count" id="accFilterCount">${visible} / ${grants.length}</span>
+      </div>
+      <div class="acc-toolbar">
+        <button class="btn btn-sm btn-secondary" id="accSelectAll">☑ Select all${q ? ' filtered' : ''}</button>
+        <button class="btn btn-sm btn-secondary" id="accDeselectAll">☐ Deselect all${q ? ' filtered' : ''}</button>
+      </div>
+      <div class="acc-body" id="accBody">${rows}</div>
+      <div class="acc-confirm-wrap">
+        <button class="btn btn-primary" id="accConfirmOpus">
+          <span>🚀</span> Start Opus Deep Analysis on <strong id="accConfirmCount">${checkedCount}</strong> grants
+        </button>
+      </div>
+    </details>`;
+    bindAccordionEvents(q);
+}
+function updateCheckedCount() {
+    const countEl = document.getElementById('accCheckedCount');
+    const confirmCountEl = document.getElementById('accConfirmCount');
+    const n = _accChecked.size;
+    if (countEl)
+        countEl.textContent = String(n);
+    if (confirmCountEl)
+        confirmCountEl.textContent = String(n);
+}
+function bindAccordionEvents(currentQuery) {
+    // Checkbox changes
+    $('grantAccordionArea').querySelectorAll('.acc-check').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const gid = cb.dataset.gid ?? '';
+            if (cb.checked)
+                _accChecked.add(gid);
+            else
+                _accChecked.delete(gid);
+            updateCheckedCount();
+        });
+        // Prevent checkbox click from toggling the <details>
+        cb.addEventListener('click', (e) => e.stopPropagation());
+    });
+    // Select / Deselect all (only visible/filtered rows)
+    $('accSelectAll').addEventListener('click', () => {
+        $('grantAccordionArea').querySelectorAll('.acc-check').forEach(cb => {
+            const el = cb;
+            if (el.offsetParent !== null || el.closest('.acc-item')) {
+                el.checked = true;
+                _accChecked.add(el.dataset.gid ?? '');
+            }
+        });
+        updateCheckedCount();
+    });
+    $('accDeselectAll').addEventListener('click', () => {
+        $('grantAccordionArea').querySelectorAll('.acc-check').forEach(cb => {
+            const el = cb;
+            if (el.offsetParent !== null || el.closest('.acc-item')) {
+                el.checked = false;
+                _accChecked.delete(el.dataset.gid ?? '');
+            }
+        });
+        updateCheckedCount();
+    });
+    // Filter input
     const input = $('accFilterInput');
     input.addEventListener('input', () => {
         const q = input.value.toLowerCase().trim();
-        const { html, visible } = buildRows(q);
-        $('accBody').innerHTML = html;
-        $('accFilterCount').textContent = `${visible} / ${grants.length}`;
-        bindAccordionLinks();
+        rebuildAccordion(q);
+        // Re-focus and restore cursor position
+        const newInput = $('accFilterInput');
+        newInput.focus();
+        newInput.setSelectionRange(newInput.value.length, newInput.value.length);
     });
-    bindAccordionLinks();
-}
-function bindAccordionLinks() {
-    $('grantResults').querySelectorAll('.acc-id, .acc-detail-link').forEach(a => {
+    // Links
+    $('grantAccordionArea').querySelectorAll('.acc-id, .acc-detail-link').forEach(a => {
         a.addEventListener('click', e => {
             e.preventDefault();
             e.stopPropagation();
             window.open(a.href, '_blank');
         });
+    });
+    // Confirm button
+    $('accConfirmOpus').addEventListener('click', () => {
+        const selected = _accGrants.filter(g => _accChecked.has(g.id));
+        if (selected.length === 0)
+            return;
+        if (_accOnConfirm)
+            _accOnConfirm(selected);
     });
 }
 function appendStreamLine(container, raw) {
@@ -541,7 +612,10 @@ async function searchGrants() {
     hide('opusStreamCard');
     show('grantsLoading');
     $('grantResults').innerHTML = '';
+    $('grantAccordionArea').innerHTML = '';
     $('grantCount').classList.add('hidden');
+    // Collapse filter card when search starts
+    $('filterCard').open = false;
     const directGrantId = $('directGrantId').value.trim();
     const period = $('programmePeriod').value;
     const statusKey = $('grantStatus').value;
@@ -591,7 +665,6 @@ async function searchGrants() {
             }
             // Opus deep analysis on this single grant
             setLoadingMsg(`🧠 Opus deep analysis on ${enriched.id}...`);
-            renderGrantAccordion([enriched]);
             const streamEl = $('opusStreamOutput');
             streamEl.innerHTML = '';
             show('opusStreamCard');
@@ -731,7 +804,7 @@ async function searchGrants() {
             $('grantCount').classList.remove('hidden');
             return;
         }
-        // ── Phase 3: Opus deep analysis — web-researched ranking of top 15 ──
+        // ── Phase 3: Show accordion for selection, then Opus deep analysis on confirm ──
         const TOP_N = 15;
         if (!ragioneSociale) {
             const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
@@ -743,69 +816,71 @@ async function searchGrants() {
             $('grantCount').classList.remove('hidden');
             return;
         }
-        setLoadingMsg(`🧠 Step 3/3 — Opus deep analysis: researching ${typeFiltered.length} grants with web search...`);
-        appLog('copilot', `Opus deep analysis: ${typeFiltered.length} grants — filters: status=${statusKey}, programme=${programme}, type=${typeOfAction}`);
-        // Show accordion with filtered grants going into analysis
-        renderGrantAccordion(typeFiltered);
-        // Show streaming output
-        const streamEl = $('opusStreamOutput');
-        streamEl.innerHTML = '';
-        show('opusStreamCard');
-        let _streamBuffer = '';
-        window.euMatch.onCopilotChunk((text) => {
-            _streamBuffer += text;
-            // Process complete lines
-            const lines = _streamBuffer.split('\n');
-            _streamBuffer = lines.pop() ?? '';
-            for (const line of lines) {
-                appendStreamLine(streamEl, line);
-            }
-            streamEl.scrollTop = streamEl.scrollHeight;
-        });
-        try {
-            const rankRes = await window.euMatch.rankOpportunities(typeFiltered, ragioneSociale);
-            if (aborted()) {
-                hide('grantsLoading');
-                hide('opusStreamCard');
-                return;
-            }
-            if (!rankRes.ok || !rankRes.rankings || rankRes.rankings.length === 0) {
-                appLog('error', `Opus ranking failed: ${rankRes.error ?? 'no results'}`);
-                const sorted = [...typeFiltered].sort((a, b) => b.matchingScore - a.matchingScore);
-                const top = sorted.slice(0, TOP_N);
-                state.grantResults = top;
-                hide('grantsLoading');
-                hide('opusStreamCard');
-                renderGrants(top, res.total ?? 0, false);
-                $('grantCount').textContent = TOP_N.toString();
-                $('grantCount').classList.remove('hidden');
-                return;
-            }
-            appLog('success', `Opus deep analysis complete — top ${rankRes.rankings.length} grants selected.`);
-            hide('opusStreamCard');
-            const grantById = new Map(typeFiltered.map(g => [g.id, g]));
-            const topN = [];
-            for (const r of rankRes.rankings) {
-                const grant = grantById.get(r.id);
-                if (grant) {
-                    grant.fitScore = r.rating;
-                    state.grantAnalyses[r.id] = {
-                        analysis: r.explanation,
-                        savedAt: new Date().toISOString(),
-                        fitScore: r.rating
-                    };
-                    topN.push(grant);
+        hide('grantsLoading');
+        appLog('success', `${typeFiltered.length} grants ready — select which to analyse and click "Start Opus Deep Analysis".`);
+        // Collapse filter card
+        $('filterCard').open = false;
+        // Show accordion with checkboxes — wait for user to confirm
+        renderGrantAccordion(typeFiltered, async (selected) => {
+            // User confirmed — run Opus on selected grants
+            show('grantsLoading');
+            setLoadingMsg(`🧠 Opus deep analysis: researching ${selected.length} grants with web search...`);
+            appLog('copilot', `Opus deep analysis: ${selected.length} grants (user-selected from ${typeFiltered.length})`);
+            const streamEl = $('opusStreamOutput');
+            streamEl.innerHTML = '';
+            show('opusStreamCard');
+            let _streamBuffer = '';
+            window.euMatch.onCopilotChunk((text) => {
+                _streamBuffer += text;
+                const lines = _streamBuffer.split('\n');
+                _streamBuffer = lines.pop() ?? '';
+                for (const line of lines) {
+                    appendStreamLine(streamEl, line);
                 }
+                streamEl.scrollTop = streamEl.scrollHeight;
+            });
+            try {
+                const rankRes = await window.euMatch.rankOpportunities(selected, ragioneSociale);
+                if (!rankRes.ok || !rankRes.rankings || rankRes.rankings.length === 0) {
+                    appLog('error', `Opus ranking failed: ${rankRes.error ?? 'no results'}`);
+                    const sorted = [...selected].sort((a, b) => b.matchingScore - a.matchingScore);
+                    const top = sorted.slice(0, TOP_N);
+                    state.grantResults = top;
+                    hide('grantsLoading');
+                    hide('opusStreamCard');
+                    renderGrants(top, res.total ?? 0, false);
+                    $('grantCount').textContent = TOP_N.toString();
+                    $('grantCount').classList.remove('hidden');
+                    return;
+                }
+                appLog('success', `Opus deep analysis complete — top ${rankRes.rankings.length} grants selected.`);
+                hide('opusStreamCard');
+                $('grantAccordionArea').innerHTML = '';
+                const grantById = new Map(selected.map(g => [g.id, g]));
+                const topN = [];
+                for (const r of rankRes.rankings) {
+                    const grant = grantById.get(r.id);
+                    if (grant) {
+                        grant.fitScore = r.rating;
+                        state.grantAnalyses[r.id] = {
+                            analysis: r.explanation,
+                            savedAt: new Date().toISOString(),
+                            fitScore: r.rating
+                        };
+                        topN.push(grant);
+                    }
+                }
+                state.grantResults = topN;
+                hide('grantsLoading');
+                renderGrants(topN, res.total ?? 0, false);
+                $('grantCount').textContent = topN.length.toString();
+                $('grantCount').classList.remove('hidden');
             }
-            state.grantResults = topN;
-            hide('grantsLoading');
-            renderGrants(topN, res.total ?? 0, false);
-            $('grantCount').textContent = topN.length.toString();
-            $('grantCount').classList.remove('hidden');
-        }
-        finally {
-            window.euMatch.removeCopilotChunkListener();
-        }
+            finally {
+                window.euMatch.removeCopilotChunkListener();
+                _searchInProgress = false;
+            }
+        });
     }
     catch (err) {
         if (aborted()) {
