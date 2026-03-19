@@ -223,6 +223,18 @@
             <dt>ERC</dt><dd><strong>European Research Council</strong> — Frontier/basic research for individual PIs: Starting (StG), Consolidator (CoG), Advanced (AdG), Synergy (SyG).</dd>
           </dl>
         </details>
+
+        <div class="direct-grant-wrap" id="directGrantWrap">
+          <label>🎯 Direct Grant ID <span class="direct-hint">(skip filters, analyse one grant)</span></label>
+          <div class="direct-grant-input-row">
+            <input type="text" id="directGrantId" placeholder="e.g. HORIZON-CL2-2026-01-DEMOCRACY-05" />
+            <button class="direct-clear-btn hidden" id="directGrantClear" title="Clear">✕</button>
+          </div>
+          <div class="alert alert-warning direct-disclaimer hidden" id="directDisclaimer">
+            ⚡ <strong>Direct mode:</strong> All search filters above will be ignored. Opus will perform a deep analysis on this specific grant only.
+          </div>
+        </div>
+
         <div class="btn-group">
           <button class="btn btn-primary" id="btnSearch">
             <span>🔎</span> Refresh Search

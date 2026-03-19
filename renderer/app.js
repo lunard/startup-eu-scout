@@ -374,6 +374,18 @@ $('btnSearchGrants').addEventListener('click', async () => {
     await searchGrants();
 });
 $('btnSearch').addEventListener('click', () => { searchGrants(); });
+// ─── Direct Grant ID ─────────────────────────────────────────────────────────
+$('directGrantId').addEventListener('input', () => {
+    const val = $('directGrantId').value.trim();
+    toggle('directDisclaimer', val.length > 0);
+    toggle('directGrantClear', val.length > 0);
+});
+$('directGrantClear').addEventListener('click', () => {
+    $('directGrantId').value = '';
+    hide('directDisclaimer');
+    hide('directGrantClear');
+    $('directGrantId').focus();
+});
 function setLoadingMsg(msg) {
     const el = document.getElementById('grantsLoadingMsg');
     if (el)
@@ -493,16 +505,107 @@ async function searchGrants() {
     }
     _searchInProgress = true;
     hide('grantsEmpty');
+    hide('opusStreamCard');
     show('grantsLoading');
     $('grantResults').innerHTML = '';
     $('grantCount').classList.add('hidden');
+    const directGrantId = $('directGrantId').value.trim();
     const period = $('programmePeriod').value;
     const statusKey = $('grantStatus').value;
     const language = $('grantLanguage').value;
     const programme = $('grantProgramme').value;
-    const typeOfAction = $('grantTypeOfAction').value; // 'all' | 'RIA' | 'IA' | …
+    const typeOfAction = $('grantTypeOfAction').value;
     const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
     const isClosed = statusKey === 'closed';
+    // ── Direct Grant ID mode: skip all filters, analyse single grant with Opus ──
+    if (directGrantId) {
+        appLog('info', `Direct mode: analysing grant "${directGrantId}"`);
+        setLoadingMsg(`🎯 Direct mode — fetching grant ${directGrantId}...`);
+        try {
+            // Search the EU API for this specific grant ID
+            const res = await window.euMatch.searchFunding([directGrantId], { statusKey: 'open-forthcoming', language: 'en', programme: 'all' });
+            if (aborted()) {
+                hide('grantsLoading');
+                return;
+            }
+            let grant = res.results?.find((g) => g.id.toUpperCase() === directGrantId.toUpperCase());
+            if (!grant && res.results && res.results.length > 0) {
+                // Fallback: take closest match
+                grant = res.results.find((g) => g.id.toUpperCase().includes(directGrantId.toUpperCase())) ?? res.results[0];
+            }
+            if (!grant) {
+                hide('grantsLoading');
+                $('grantResults').innerHTML = `<div class="alert alert-error">❌ Grant <strong>${escHtml(directGrantId)}</strong> not found in the EU API.</div>`;
+                _searchInProgress = false;
+                return;
+            }
+            // Enrich with full details
+            setLoadingMsg(`📄 Crawling grant page for ${grant.id}...`);
+            const enrichRes = await window.euMatch.enrichGrants([grant]);
+            if (aborted()) {
+                hide('grantsLoading');
+                return;
+            }
+            const enriched = enrichRes.ok && enrichRes.results ? enrichRes.results[0] : grant;
+            if (!ragioneSociale) {
+                hide('grantsLoading');
+                state.grantResults = [enriched];
+                renderGrants([enriched], 1, false);
+                $('grantCount').textContent = '1';
+                $('grantCount').classList.remove('hidden');
+                _searchInProgress = false;
+                return;
+            }
+            // Opus deep analysis on this single grant
+            setLoadingMsg(`🧠 Opus deep analysis on ${enriched.id}...`);
+            renderGrantAccordion([enriched]);
+            const streamEl = $('opusStreamOutput');
+            streamEl.innerHTML = '';
+            show('opusStreamCard');
+            let _buf = '';
+            window.euMatch.onCopilotChunk((text) => {
+                _buf += text;
+                const lines = _buf.split('\n');
+                _buf = lines.pop() ?? '';
+                for (const line of lines)
+                    appendStreamLine(streamEl, line);
+                streamEl.scrollTop = streamEl.scrollHeight;
+            });
+            try {
+                const rankRes = await window.euMatch.rankOpportunities([enriched], ragioneSociale);
+                if (aborted()) {
+                    hide('grantsLoading');
+                    hide('opusStreamCard');
+                    return;
+                }
+                hide('opusStreamCard');
+                if (rankRes.ok && rankRes.rankings && rankRes.rankings.length > 0) {
+                    const r = rankRes.rankings[0];
+                    enriched.fitScore = r.rating;
+                    state.grantAnalyses[enriched.id] = { analysis: r.explanation, savedAt: new Date().toISOString(), fitScore: r.rating };
+                }
+                state.grantResults = [enriched];
+                hide('grantsLoading');
+                renderGrants([enriched], 1, false);
+                $('grantCount').textContent = '1';
+                $('grantCount').classList.remove('hidden');
+            }
+            finally {
+                window.euMatch.removeCopilotChunkListener();
+            }
+        }
+        catch (err) {
+            hide('grantsLoading');
+            hide('opusStreamCard');
+            $('grantResults').innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
+            appLog('error', `Direct mode error: ${err.message}`);
+        }
+        finally {
+            if (!aborted())
+                _searchInProgress = false;
+        }
+        return;
+    }
     try {
         // ── Phase 1: Search ────────────────────────────────────────────────
         setLoadingMsg('🔍 Step 1 — Searching EU grants...');

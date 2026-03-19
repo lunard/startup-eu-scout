@@ -268,6 +268,48 @@ body {
 .kw-add-input::placeholder { color: var(--eu-blue); opacity: 0.6; }
 .kw-add-input:focus { border-color: var(--eu-gold); }
 
+/* ─── Direct Grant ID ────────────────────────────────── */
+.direct-grant-wrap { margin-top: 14px; }
+.direct-grant-wrap > label { font-size: 13px; font-weight: 600; }
+.direct-hint { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.direct-grant-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.direct-grant-input-row input {
+  flex: 1;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color .15s;
+}
+.direct-grant-input-row input:focus { border-color: var(--eu-blue); }
+.direct-grant-input-row input::placeholder { font-family: inherit; opacity: 0.5; }
+.direct-clear-btn {
+  background: none;
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, border-color .15s;
+}
+.direct-clear-btn:hover { color: #e53935; border-color: #e53935; }
+.direct-disclaimer { margin-top: 8px; font-size: 12px; }
+
 /* ─── Grant Accordion ────────────────────────────────── */
 .grant-accordion { margin-bottom: 16px; }
 .acc-summary {
