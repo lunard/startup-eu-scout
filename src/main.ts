@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'path';
 import * as storage from './storage';
 import * as credManager from './credential-manager';
@@ -17,11 +17,14 @@ function sendLog(level: string, message: string, detail = ''): void {
 }
 
 function createWindow(): void {
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1254,
     height: 1040,
     minWidth: 941,
     minHeight: 780,
+    fullscreen: true,
     title: 'EU-Match — Scouting Finanziamenti Europei',
     icon: path.join(__dirname, '..', 'assets', process.platform === 'darwin' ? 'icon.icns' : 'icon.png'),
     webPreferences: {
@@ -78,23 +81,23 @@ ipcMain.handle('profiler:build', async (event, { ragioneSociale, url }: { ragion
     sendLog('info', `[Profiler] ${msg}`);
   };
 
-  send('⏳', 'Verifica cache locale…');
+  send('⏳', 'Checking local cache…');
   const cached = storage.loadProfile(ragioneSociale);
   if (cached && cached.rawText) {
     if (url && url !== cached.url) {
       storage.saveProfile(ragioneSociale, { url });
       cached.url = url;
     }
-    send('✅', 'Profilo caricato dalla cache.');
-    sendLog('storage', `Profilo "${ragioneSociale}" caricato dalla cache locale.`);
+    send('✅', 'Profile loaded from cache.');
+    sendLog('storage', `Profile "${ragioneSociale}" loaded from local cache.`);
     return { ...cached, fromCache: true };
   }
 
   try {
     const profile = await profiler.buildProfile(ragioneSociale, url, send);
     storage.saveProfile(ragioneSociale, profile);
-    send('✅', 'Profilazione completata e salvata.');
-    sendLog('success', `Profilazione "${ragioneSociale}" completata.`, `URL: ${url || '—'}`);
+    send('✅', 'Profiling complete and saved.');
+    sendLog('success', `Profile "${ragioneSociale}" complete.`, `URL: ${url || '—'}`);
     return { ...profile, fromCache: false };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -118,14 +121,14 @@ ipcMain.handle('copilot:health', async () => {
 ipcMain.handle('copilot:checkModel', async () => {
   const settings = storage.getSettings();
   const result = await copilot.checkModel(settings.copilotPath);
-  sendLog('info', `Modello Copilot attivo: ${result.currentModel ?? '?'} — consigliato: ${result.recommended ?? '?'}`);
+  sendLog('info', `Active Copilot model: ${result.currentModel ?? '?'} — recommended: ${result.recommended ?? '?'}`);
   return result;
 });
 
 ipcMain.handle('copilot:generateScheda', async (event, profile: ProfileData) => {
   const settings = storage.getSettings();
   const sender = event.sender;
-  sendLog('copilot', `Avvio generazione Scheda EU per "${profile.ragioneSociale}"…`);
+  sendLog('copilot', `Generating EU Summary for "${profile.ragioneSociale}"…`);
 
   const onChunk = (text: string): void => {
     if (sender && !sender.isDestroyed()) sender.send('copilot:chunk', text);
@@ -135,11 +138,11 @@ ipcMain.handle('copilot:generateScheda', async (event, profile: ProfileData) => 
     const scheda = await copilot.generateSchedaEU(profile, settings, onChunk);
     const keywords = await copilot.extractKeywords(scheda, settings);
     storage.saveProfile(profile.ragioneSociale, { schedaEU: scheda, keywords });
-    sendLog('success', `Scheda EU generata per "${profile.ragioneSociale}".`, `${keywords.length} keywords: ${keywords.join(', ')}`);
+    sendLog('success', `EU Summary generated for "${profile.ragioneSociale}".`, `${keywords.length} keywords: ${keywords.join(', ')}`);
     return { ok: true, schedaEU: scheda, keywords };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    sendLog('error', `Errore generazione Scheda: ${message}`);
+    sendLog('error', `EU Summary generation failed: ${message}`);
     return { ok: false, error: message };
   }
 });
@@ -172,22 +175,22 @@ ipcMain.handle('eu:enrichGrants', async (_event, { results }: { results: SearchR
 });
 
 ipcMain.handle('eu:testAuth', async () => {
-  sendLog('api', 'Test credenziali EU Login in corso…');
+  sendLog('api', 'Testing EU Login credentials…');
   const creds = credManager.loadCredentials();
   if (!creds) {
-    sendLog('warn', 'Nessuna credenziale EU Login salvata.');
-    return { ok: false, error: 'Nessuna credenziale salvata.' };
+    sendLog('warn', 'No EU Login credentials saved.');
+    return { ok: false, error: 'No saved credentials found.' };
   }
   const result = await euAuth.testEuLoginCredentials(creds.username, creds.password);
   sendLog(
     result.ok ? 'success' : 'error',
-    result.ok ? `EU Login OK per ${creds.username}` : `EU Login fallito: ${result.error}`
+    result.ok ? `EU Login OK for ${creds.username}` : `EU Login failed: ${result.error}`
   );
   return result;
 });
 
 ipcMain.handle('eu:testConnectivity', async () => {
-  sendLog('api', 'Test connettività EU API in corso…');
+  sendLog('api', 'Testing EU API connectivity…');
   const result = await euAuth.testApiConnectivity();
   sendLog(result.ok ? 'success' : 'error', result.message, `HTTP status: ${result.status}`);
   return result;

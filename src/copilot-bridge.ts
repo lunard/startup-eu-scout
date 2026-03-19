@@ -118,9 +118,9 @@ function spawnPrompt(bin: string, prompt: string, model: string, onChunk: ((text
     proc.on('close', (code: number | null) => {
       const out = fullOutput.trim();
       if (out.length > 0) resolve(out);
-      else reject(new Error(`Copilot exit ${code}: ${stderr.trim().substring(0, 300) || 'nessun output'}`));
+      else reject(new Error(`Copilot exit ${code}: ${stderr.trim().substring(0, 300) || 'no output'}`));
     });
-    proc.on('error', (err: Error) => reject(new Error(`Impossibile avviare copilot: ${err.message}`)));
+    proc.on('error', (err: Error) => reject(new Error(`Failed to start copilot: ${err.message}`)));
   });
 }
 
@@ -144,34 +144,34 @@ export async function extractKeywords(schedaEU: string, settings: AppSettings): 
 }
 
 function buildSchedaPrompt(profile: ProfileData): string {
-  return `Sei un esperto di finanziamenti europei. Analizza il seguente profilo aziendale e genera una "Scheda Riassuntiva Europea" strutturata in italiano.
+  return `You are an expert in European funding programmes. Analyse the following company profile and generate a structured "EU Summary Sheet" in English.
 
-La scheda deve includere:
-1. **Descrizione sintetica** dell'azienda (max 150 parole)
-2. **Tecnologie chiave** (lista puntata)
-3. **Mercato target**
-4. **Programmi EU potenzialmente rilevanti** (Horizon Europe, Digital Europe, EIC Accelerator, COSME, ecc.)
-5. **Punti di forza per i bandi europei**
-6. **Keywords per ricerca bandi** (10-15 termini in inglese, formato JSON array)
+The sheet must include:
+1. **Company Overview** (max 150 words)
+2. **Key Technologies** (bullet list)
+3. **Target Market**
+4. **Potentially Relevant EU Programmes** (Horizon Europe, Digital Europe, EIC Accelerator, COSME, etc.)
+5. **Strengths for EU Calls**
+6. **Search Keywords for Grants** (10-15 terms in English, JSON array format)
 
 ---
-PROFILO AZIENDALE:
-Ragione Sociale: ${profile.ragioneSociale}
-Sito web: ${profile.url ?? 'N/D'}
-Descrizione: ${profile.description ?? 'N/D'}
-Testo estratto dal sito:
-${profile.rawText ?? 'N/D'}
+COMPANY PROFILE:
+Company Name: ${profile.ragioneSociale}
+Website: ${profile.url ?? 'N/A'}
+Description: ${profile.description ?? 'N/A'}
+Extracted website text:
+${profile.rawText ?? 'N/A'}
 ---
 
-Rispondi SOLO con la scheda strutturata, senza preamboli.`;
+Respond ONLY with the structured sheet, no preamble. Always respond in English.`;
 }
 
 function buildKeywordsPrompt(schedaEU: string): string {
-  return `Dalla seguente scheda aziendale europea, estrai le 10-15 keyword piu rilevanti per cercare bandi EU sul portale Funding & Tenders.
-Restituisci SOLO un JSON array di stringhe in inglese, senza altri testi.
-Esempio: ["artificial intelligence", "green technology", "SME", "digitalization"]
+  return `From the following EU company summary sheet, extract the 10-15 most relevant keywords for searching EU grants on the Funding & Tenders portal.
+Return ONLY a JSON array of English strings, no other text.
+Example: ["artificial intelligence", "green technology", "SME", "digitalization"]
 
-SCHEDA:
+SUMMARY SHEET:
 ${schedaEU}
 
 OUTPUT:`;

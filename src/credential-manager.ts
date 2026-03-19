@@ -11,7 +11,7 @@ function isEncryptionAvailable(): boolean {
 
 export function saveCredentials(username: string, password: string): void {
   if (!isEncryptionAvailable()) {
-    throw new Error('Sistema di cifratura OS non disponibile. Impossibile salvare credenziali.');
+    throw new Error('OS encryption unavailable. Cannot save credentials.');
   }
   const payload = JSON.stringify({ username, password });
   const encrypted = safeStorage.encryptString(payload);

@@ -137,12 +137,12 @@ async function runHealthCheck(): Promise<void> {
 
     if (model.isOpus === false) {
       const label = $('currentModelLabel');
-      if (label) label.textContent = model.currentModel || 'sconosciuto';
+      if (label) label.textContent = model.currentModel || 'unknown';
       show('modelModal');
     }
   } catch (err) {
     dot.className = 'status-dot err';
-    txt.textContent = 'Errore verifica Copilot';
+    txt.textContent = 'Copilot check failed';
     setAlert('copilotHealthStatus', 'error', `❌ ${(err as Error).message}`);
   }
 }
@@ -152,14 +152,14 @@ async function renderRecentProfiles(): Promise<void> {
   const list = await window.euMatch.listProfiles();
   const el = $('recentList');
   if (!list || list.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div>Nessun profilo salvato.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div>No profiles saved.</div>`;
     return;
   }
   el.innerHTML = `<div class="recent-list">${list.map(p => `
     <div class="recent-item" data-name="${escHtml(p.ragioneSociale)}">
       <span class="recent-name">${escHtml(p.ragioneSociale)}</span>
       <span class="recent-date">${fmtDate(p.lastUpdated)}</span>
-      <button class="recent-delete" data-name="${escHtml(p.ragioneSociale)}" title="Elimina profilo">🗑️</button>
+      <button class="recent-delete" data-name="${escHtml(p.ragioneSociale)}" title="Delete profile">🗑️</button>
     </div>
   `).join('')}</div>`;
 
@@ -242,7 +242,7 @@ async function buildProfile(ragioneSociale: string, url: string): Promise<void> 
   }
 
   logEl.innerHTML = '';
-  $('profileLoadingText').textContent = 'Profilazione in corso…';
+  $('profileLoadingText').textContent = 'Profiling in progress…';
   show('profileLoading');
   hide('profileResult');
 
@@ -265,14 +265,14 @@ async function buildProfile(ragioneSociale: string, url: string): Promise<void> 
 
 function renderProfileData(profile: ProfileData, fromCache: boolean): void {
   const fields: Array<{ label: string; value: string; full?: boolean }> = [
-    { label: 'Ragione Sociale', value: profile.ragioneSociale },
-    { label: 'P.IVA / Numero', value: profile.piva || '—' },
-    { label: 'Giurisdizione', value: (profile.jurisdiction || 'IT').toUpperCase() },
-    { label: 'Costituita il', value: fmtDate(profile.incorporatedOn) },
-    { label: 'Sito Web', value: profile.url || '—' },
-    { label: 'Aggiornato', value: fmtDate(profile.lastUpdated ?? profile.scrapedAt) },
-    { label: 'Titolo Pagina', value: profile.pageTitle || '—', full: true },
-    { label: 'Descrizione', value: profile.description || '—', full: true }
+    { label: 'Company Name', value: profile.ragioneSociale },
+    { label: 'VAT / ID Number', value: profile.piva || '—' },
+    { label: 'Jurisdiction', value: (profile.jurisdiction || 'IT').toUpperCase() },
+    { label: 'Incorporated On', value: fmtDate(profile.incorporatedOn) },
+    { label: 'Website', value: profile.url || '—' },
+    { label: 'Last Updated', value: fmtDate(profile.lastUpdated ?? profile.scrapedAt) },
+    { label: 'Page Title', value: profile.pageTitle || '—', full: true },
+    { label: 'Description', value: profile.description || '—', full: true }
   ];
 
   $('profileGrid').innerHTML = fields.map(f => `
@@ -331,7 +331,6 @@ function resetAll(): void {
   ($('grantStatus') as HTMLSelectElement).value = 'open-forthcoming';
   ($('grantProgramme') as HTMLSelectElement).value = 'all';
   ($('grantTypeOfAction') as HTMLSelectElement).value = 'all';
-  ($('grantLanguage') as HTMLSelectElement).value = 'en';
   ($('directGrantId') as HTMLInputElement).value = '';
   hide('directDisclaimer');
   hide('directGrantClear');
@@ -358,13 +357,13 @@ $('btnGeneraScheda').addEventListener('click', async () => {
 
   const btn = $('btnGeneraScheda') as HTMLButtonElement;
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generazione in corso…';
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generating…';
 
   try {
     await generateScheda(state.currentProfile);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<span>🤖</span> Genera Scheda EU con Copilot';
+    btn.innerHTML = '<span>🤖</span> Generate EU Summary with Copilot';
   }
 });
 
@@ -377,7 +376,7 @@ async function generateScheda(profile: ProfileData): Promise<void> {
   hide('schedaSourcePanel');
   hide('btnDownloadMd');
 
-  appLog('copilot', `Generazione Scheda EU per "${profile.ragioneSociale}"…`);
+  appLog('copilot', `Generating EU Summary for "${profile.ragioneSociale}"…`);
 
   const sourceEl = $('schedaSource');
   const previewEl = $('schedaContent');
@@ -395,7 +394,7 @@ async function generateScheda(profile: ProfileData): Promise<void> {
     const result = await window.euMatch.generateSchedaEU(profile);
 
     if (!result.ok) {
-      setAlert('schedaInfo', 'error', `❌ Errore Copilot: ${result.error}`);
+      setAlert('schedaInfo', 'error', `❌ Copilot error: ${result.error}`);
       show('schedaInfo');
       hide('schedaSubTabs');
     } else {
@@ -494,7 +493,7 @@ document.querySelectorAll('.sub-tab-btn').forEach(btn => {
 // ─── Download MD ───────────────────────────────────────────────────────────────
 $('btnDownloadMd').addEventListener('click', () => {
   const content  = $('schedaSource').textContent ?? '';
-  const filename = `${(state.currentProfile?.ragioneSociale ?? 'scheda').replace(/\s+/g, '_')}_scheda_eu.md`;
+  const filename = `${(state.currentProfile?.ragioneSociale ?? 'summary').replace(/\s+/g, '_')}_eu_summary.md`;
   const blob = new Blob([content], { type: 'text/markdown' });
   const url  = URL.createObjectURL(blob);
   const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
@@ -823,7 +822,7 @@ async function searchGrants(): Promise<void> {
   const directGrantId  = ($('directGrantId') as HTMLInputElement).value.trim();
   const period         = ($('programmePeriod')     as HTMLSelectElement).value;
   const statusKey      = ($('grantStatus')         as HTMLSelectElement).value;
-  const language       = ($('grantLanguage')       as HTMLSelectElement).value;
+  const language       = 'en';
   const programme      = ($('grantProgramme')      as HTMLSelectElement).value;
   const typeOfAction   = ($('grantTypeOfAction')   as HTMLSelectElement).value;
   const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
@@ -1201,7 +1200,7 @@ async function loadSettings(): Promise<void> {
 $('btnSaveSettings').addEventListener('click', async () => {
   const settings = { copilotPath: ($('copilotPath') as HTMLInputElement).value.trim() };
   await window.euMatch.saveSettings(settings);
-  setAlert('copilotHealthStatus', 'success', '✅ Impostazioni salvate.');
+  setAlert('copilotHealthStatus', 'success', '✅ Settings saved.');
   await runHealthCheck();
 });
 
@@ -1212,12 +1211,12 @@ $('btnSaveCreds').addEventListener('click', async () => {
   const u = ($('euUsername') as HTMLInputElement).value.trim();
   const p = ($('euPassword') as HTMLInputElement).value;
   if (!u || !p) {
-    setAlert('credStatus', 'warning', '⚠️ Inserisci username e password.');
+    setAlert('credStatus', 'warning', '⚠️ Enter both username and password.');
     return;
   }
   const res = await window.euMatch.saveCredentials(u, p);
   setAlert('credStatus', res.ok ? 'success' : 'error',
-    res.ok ? '🔐 Credenziali salvate in modo sicuro.' : `❌ ${res.error}`);
+    res.ok ? '🔐 Credentials saved securely.' : `❌ ${res.error}`);
   ($('euPassword') as HTMLInputElement).value = '';
 });
 
@@ -1226,9 +1225,9 @@ $('btnLoadCreds').addEventListener('click', async () => {
   if (res.ok && res.data) {
     ($('euUsername') as HTMLInputElement).value = res.data.username;
     ($('euPassword') as HTMLInputElement).value = '••••••••';
-    setAlert('credStatus', 'info', `📂 Credenziali caricate per: ${escHtml(res.data.username)}`);
+    setAlert('credStatus', 'info', `📂 Credentials loaded for: ${escHtml(res.data.username)}`);
   } else {
-    setAlert('credStatus', 'warning', '⚠️ Nessuna credenziale salvata.');
+    setAlert('credStatus', 'warning', '⚠️ No saved credentials found.');
   }
 });
 
@@ -1236,16 +1235,16 @@ $('btnClearCreds').addEventListener('click', async () => {
   await window.euMatch.clearCredentials();
   ($('euUsername') as HTMLInputElement).value = '';
   ($('euPassword') as HTMLInputElement).value = '';
-  setAlert('credStatus', 'success', '🗑️ Credenziali eliminate.');
-  appLog('storage', 'Credenziali EU Login eliminate.');
+  setAlert('credStatus', 'success', '🗑️ Credentials deleted.');
+  appLog('storage', 'EU Login credentials removed.');
 });
 
 $('btnTestAuth').addEventListener('click', async () => {
   const btn = $('btnTestAuth') as HTMLButtonElement;
   btn.disabled = true;
-  btn.textContent = '⏳ Test in corso…';
-  setAlert('credStatus', 'info', '🔌 Test connessione EU in corso…');
-  appLog('api', 'Test connessione EU avviato…');
+  btn.textContent = '⏳ Testing…';
+  setAlert('credStatus', 'info', '🔌 Testing EU connection…');
+  appLog('api', 'EU connectivity test started…');
 
   try {
     const conn = await window.euMatch.testEuConnectivity();
@@ -1253,18 +1252,18 @@ $('btnTestAuth').addEventListener('click', async () => {
 
     const auth = await window.euMatch.testEuAuth();
     if (auth.ok) {
-      setAlert('credStatus', 'success', '✅ API EU raggiungibile. Credenziali EU Login valide.');
-      appLog('success', 'EU Login: credenziali verificate con successo.');
+      setAlert('credStatus', 'success', '✅ EU API reachable. Login credentials valid.');
+      appLog('success', 'EU Login credentials verified.');
     } else {
       setAlert('credStatus', conn.ok ? 'warning' : 'error',
-        `${conn.ok ? '✅ API EU raggiungibile.' : '❌ API EU non raggiungibile.'} ${auth.error}`);
+        `${conn.ok ? '✅ EU API reachable.' : '❌ EU API unreachable.'} ${auth.error}`);
       appLog('warn', `EU Login: ${auth.error}`);
     }
 
     switchToTab('log');
   } finally {
     btn.disabled = false;
-    btn.textContent = '🔌 Verifica Connessione EU';
+    btn.textContent = '🔌 Test EU Connection';
   }
 });
 

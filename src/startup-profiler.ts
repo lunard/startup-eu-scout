@@ -22,7 +22,7 @@ interface WebData {
 type StepFn = (icon: string, msg: string) => void;
 
 async function fetchBusinessRegister(ragioneSociale: string, onStep: StepFn): Promise<RegisterData | null> {
-  onStep('⏳', `Ricerca registro imprese: "${ragioneSociale}"…`);
+  onStep('⏳', `Searching business registry: "${ragioneSociale}"…`);
   try {
     const res = await axios.get(`${OPENCORPORATES_BASE}/companies/search`, {
       params: { q: ragioneSociale, jurisdiction_code: 'it', format: 'json' },
@@ -32,12 +32,12 @@ async function fetchBusinessRegister(ragioneSociale: string, onStep: StepFn): Pr
 
     const companies = (res.data as { results?: { companies?: Array<{ company: Record<string, string> }> } })?.results?.companies;
     if (!companies || companies.length === 0) {
-      onStep('⚠️', 'Registro: nessuna azienda trovata con questo nome.');
+      onStep('⚠️', 'Registry: no company found with this name.');
       return null;
     }
 
     const best = companies[0].company;
-    onStep('✅', `Registro: trovata "${best.name}" — n° ${best.company_number}`);
+    onStep('✅', `Registry: found "${best.name}" — no. ${best.company_number}`);
     return {
       ragioneSociale: best.name,
       jurisdiction: best.jurisdiction_code,
@@ -49,23 +49,23 @@ async function fetchBusinessRegister(ragioneSociale: string, onStep: StepFn): Pr
   } catch (err) {
     const axiosErr = err as { response?: { status?: number }; code?: string; name?: string; message?: string };
     const reason = axiosErr.response?.status === 401
-      ? 'API key OpenCorporates non configurata'
+      ? 'OpenCorporates API key not configured'
       : axiosErr.code === 'ECONNABORTED' || axiosErr.name === 'AbortError'
         ? 'timeout (8s)'
-        : axiosErr.message ?? 'errore sconosciuto';
-    onStep('⚠️', `Registro non disponibile: ${reason}`);
+        : axiosErr.message ?? 'unknown error';
+    onStep('⚠️', `Registry unavailable: ${reason}`);
     return null;
   }
 }
 
 async function scrapeWebsite(url: string | undefined, onStep: StepFn): Promise<WebData> {
   if (!url) {
-    onStep('ℹ️', 'Nessun sito web fornito — scraping saltato.');
+    onStep('ℹ️', 'No website provided — scraping skipped.');
     return {};
   }
 
   const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
-  onStep('⏳', `Scraping sito: ${normalizedUrl}…`);
+  onStep('⏳', `Scraping website: ${normalizedUrl}…`);
 
   try {
     const res = await axios.get<string>(normalizedUrl, {
@@ -91,26 +91,26 @@ async function scrapeWebsite(url: string | undefined, onStep: StepFn): Promise<W
     const description = metaDesc || ogDesc || title;
     const rawText = bodyTexts.slice(0, 40).join(' ').substring(0, 3000);
 
-    onStep('✅', `Sito analizzato: "${title || normalizedUrl}" — ${bodyTexts.length} blocchi di testo`);
+    onStep('✅', `Website analysed: "${title || normalizedUrl}" — ${bodyTexts.length} text blocks`);
     return { pageTitle: title, description, rawText };
   } catch (err) {
     const axiosErr = err as { code?: string; name?: string; message?: string };
     const reason = axiosErr.code === 'ECONNABORTED' || axiosErr.name === 'AbortError'
-      ? 'timeout (12s)' : (axiosErr.message ?? 'errore sconosciuto');
-    onStep('⚠️', `Scraping fallito: ${reason}`);
+      ? 'timeout (12s)' : (axiosErr.message ?? 'unknown error');
+    onStep('⚠️', `Scraping failed: ${reason}`);
     return {};
   }
 }
 
 export async function buildProfile(ragioneSociale: string, websiteUrl: string | undefined, onStep: StepFn = () => {}): Promise<ProfileData> {
-  onStep('⏳', 'Avvio profilazione startup…');
+  onStep('⏳', 'Starting startup profiling…');
 
   const [registerData, webData] = await Promise.all([
     fetchBusinessRegister(ragioneSociale, onStep),
     scrapeWebsite(websiteUrl, onStep)
   ]);
 
-  onStep('💾', 'Salvataggio profilo in cache locale…');
+  onStep('💾', 'Saving profile to local cache…');
 
   return {
     ragioneSociale,

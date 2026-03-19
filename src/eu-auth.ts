@@ -22,20 +22,20 @@ export async function testEuLoginCredentials(username: string, password: string)
 
     if (res.status === 201) {
       const tgtUrl = (res.headers['location'] as string | undefined) ?? '';
-      return { ok: true, message: 'Credenziali EU Login valide. TGT ottenuto.', tgtUrl };
+      return { ok: true, message: 'EU Login credentials valid. TGT obtained.', tgtUrl };
     }
 
     if (res.status === 400 || res.status === 401 || res.status === 403) {
-      return { ok: false, error: `Credenziali non valide (HTTP ${res.status}).` };
+      return { ok: false, error: `Invalid credentials (HTTP ${res.status}).` };
     }
 
-    return { ok: false, error: `Risposta inattesa dal server EU Login (HTTP ${res.status}).` };
+    return { ok: false, error: `Unexpected response from EU Login (HTTP ${res.status}).` };
   } catch (err) {
     const axiosErr = err as { code?: string; message?: string };
     if (axiosErr.code === 'ECONNREFUSED' || axiosErr.code === 'ENOTFOUND' || axiosErr.code === 'ECONNABORTED') {
-      return { ok: false, error: `Impossibile raggiungere EU Login: ${axiosErr.code}` };
+      return { ok: false, error: `Cannot reach EU Login: ${axiosErr.code}` };
     }
-    return { ok: false, error: axiosErr.message ?? 'Errore sconosciuto.' };
+    return { ok: false, error: axiosErr.message ?? 'Unknown error.' };
   }
 }
 
@@ -53,11 +53,11 @@ export async function testApiConnectivity(): Promise<ConnectivityResult> {
       ok,
       status: res.status,
       message: ok
-        ? `API EU raggiungibile — ${res.data?.totalResults ?? '?'} risultati disponibili`
-        : `API EU ha risposto con HTTP ${res.status}`
+        ? `EU API reachable — ${res.data?.totalResults ?? '?'} results available`
+        : `EU API responded with HTTP ${res.status}`
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, status: 0, message: `Connessione fallita: ${message}` };
+    return { ok: false, status: 0, message: `Connection failed: ${message}` };
   }
 }

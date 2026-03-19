@@ -111,13 +111,13 @@ async function runHealthCheck() {
         if (model.isOpus === false) {
             const label = $('currentModelLabel');
             if (label)
-                label.textContent = model.currentModel || 'sconosciuto';
+                label.textContent = model.currentModel || 'unknown';
             show('modelModal');
         }
     }
     catch (err) {
         dot.className = 'status-dot err';
-        txt.textContent = 'Errore verifica Copilot';
+        txt.textContent = 'Copilot check failed';
         setAlert('copilotHealthStatus', 'error', `❌ ${err.message}`);
     }
 }
@@ -126,14 +126,14 @@ async function renderRecentProfiles() {
     const list = await window.euMatch.listProfiles();
     const el = $('recentList');
     if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div>Nessun profilo salvato.</div>`;
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div>No profiles saved.</div>`;
         return;
     }
     el.innerHTML = `<div class="recent-list">${list.map(p => `
     <div class="recent-item" data-name="${escHtml(p.ragioneSociale)}">
       <span class="recent-name">${escHtml(p.ragioneSociale)}</span>
       <span class="recent-date">${fmtDate(p.lastUpdated)}</span>
-      <button class="recent-delete" data-name="${escHtml(p.ragioneSociale)}" title="Elimina profilo">🗑️</button>
+      <button class="recent-delete" data-name="${escHtml(p.ragioneSociale)}" title="Delete profile">🗑️</button>
     </div>
   `).join('')}</div>`;
     el.querySelectorAll('.recent-item').forEach(item => {
@@ -208,7 +208,7 @@ async function buildProfile(ragioneSociale, url) {
         lineCount++;
     }
     logEl.innerHTML = '';
-    $('profileLoadingText').textContent = 'Profilazione in corso…';
+    $('profileLoadingText').textContent = 'Profiling in progress…';
     show('profileLoading');
     hide('profileResult');
     window.euMatch.onProfileProgress(appendLog);
@@ -230,14 +230,14 @@ async function buildProfile(ragioneSociale, url) {
 }
 function renderProfileData(profile, fromCache) {
     const fields = [
-        { label: 'Ragione Sociale', value: profile.ragioneSociale },
-        { label: 'P.IVA / Numero', value: profile.piva || '—' },
-        { label: 'Giurisdizione', value: (profile.jurisdiction || 'IT').toUpperCase() },
-        { label: 'Costituita il', value: fmtDate(profile.incorporatedOn) },
-        { label: 'Sito Web', value: profile.url || '—' },
-        { label: 'Aggiornato', value: fmtDate(profile.lastUpdated ?? profile.scrapedAt) },
-        { label: 'Titolo Pagina', value: profile.pageTitle || '—', full: true },
-        { label: 'Descrizione', value: profile.description || '—', full: true }
+        { label: 'Company Name', value: profile.ragioneSociale },
+        { label: 'VAT / ID Number', value: profile.piva || '—' },
+        { label: 'Jurisdiction', value: (profile.jurisdiction || 'IT').toUpperCase() },
+        { label: 'Incorporated On', value: fmtDate(profile.incorporatedOn) },
+        { label: 'Website', value: profile.url || '—' },
+        { label: 'Last Updated', value: fmtDate(profile.lastUpdated ?? profile.scrapedAt) },
+        { label: 'Page Title', value: profile.pageTitle || '—', full: true },
+        { label: 'Description', value: profile.description || '—', full: true }
     ];
     $('profileGrid').innerHTML = fields.map(f => `
     <div class="data-item${f.full ? ' full' : ''}" style="${f.full ? 'grid-column:1/-1' : ''}">
@@ -288,7 +288,6 @@ function resetAll() {
     $('grantStatus').value = 'open-forthcoming';
     $('grantProgramme').value = 'all';
     $('grantTypeOfAction').value = 'all';
-    $('grantLanguage').value = 'en';
     $('directGrantId').value = '';
     hide('directDisclaimer');
     hide('directGrantClear');
@@ -310,13 +309,13 @@ $('btnGeneraScheda').addEventListener('click', async () => {
     switchToTab('scheda');
     const btn = $('btnGeneraScheda');
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generazione in corso…';
+    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generating…';
     try {
         await generateScheda(state.currentProfile);
     }
     finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>🤖</span> Genera Scheda EU con Copilot';
+        btn.innerHTML = '<span>🤖</span> Generate EU Summary with Copilot';
     }
 });
 async function generateScheda(profile) {
@@ -327,7 +326,7 @@ async function generateScheda(profile) {
     hide('schedaPreviewPanel');
     hide('schedaSourcePanel');
     hide('btnDownloadMd');
-    appLog('copilot', `Generazione Scheda EU per "${profile.ragioneSociale}"…`);
+    appLog('copilot', `Generating EU Summary for "${profile.ragioneSociale}"…`);
     const sourceEl = $('schedaSource');
     const previewEl = $('schedaContent');
     sourceEl.textContent = '';
@@ -341,7 +340,7 @@ async function generateScheda(profile) {
     try {
         const result = await window.euMatch.generateSchedaEU(profile);
         if (!result.ok) {
-            setAlert('schedaInfo', 'error', `❌ Errore Copilot: ${result.error}`);
+            setAlert('schedaInfo', 'error', `❌ Copilot error: ${result.error}`);
             show('schedaInfo');
             hide('schedaSubTabs');
         }
@@ -427,7 +426,7 @@ document.querySelectorAll('.sub-tab-btn').forEach(btn => {
 // ─── Download MD ───────────────────────────────────────────────────────────────
 $('btnDownloadMd').addEventListener('click', () => {
     const content = $('schedaSource').textContent ?? '';
-    const filename = `${(state.currentProfile?.ragioneSociale ?? 'scheda').replace(/\s+/g, '_')}_scheda_eu.md`;
+    const filename = `${(state.currentProfile?.ragioneSociale ?? 'summary').replace(/\s+/g, '_')}_eu_summary.md`;
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement('a'), { href: url, download: filename });
@@ -724,7 +723,7 @@ async function searchGrants() {
     const directGrantId = $('directGrantId').value.trim();
     const period = $('programmePeriod').value;
     const statusKey = $('grantStatus').value;
-    const language = $('grantLanguage').value;
+    const language = 'en';
     const programme = $('grantProgramme').value;
     const typeOfAction = $('grantTypeOfAction').value;
     const ragioneSociale = state.currentProfile?.ragioneSociale ?? '';
@@ -1079,7 +1078,7 @@ async function loadSettings() {
 $('btnSaveSettings').addEventListener('click', async () => {
     const settings = { copilotPath: $('copilotPath').value.trim() };
     await window.euMatch.saveSettings(settings);
-    setAlert('copilotHealthStatus', 'success', '✅ Impostazioni salvate.');
+    setAlert('copilotHealthStatus', 'success', '✅ Settings saved.');
     await runHealthCheck();
 });
 $('btnRecheckCopilot').addEventListener('click', () => { runHealthCheck(); });
@@ -1088,11 +1087,11 @@ $('btnSaveCreds').addEventListener('click', async () => {
     const u = $('euUsername').value.trim();
     const p = $('euPassword').value;
     if (!u || !p) {
-        setAlert('credStatus', 'warning', '⚠️ Inserisci username e password.');
+        setAlert('credStatus', 'warning', '⚠️ Enter both username and password.');
         return;
     }
     const res = await window.euMatch.saveCredentials(u, p);
-    setAlert('credStatus', res.ok ? 'success' : 'error', res.ok ? '🔐 Credenziali salvate in modo sicuro.' : `❌ ${res.error}`);
+    setAlert('credStatus', res.ok ? 'success' : 'error', res.ok ? '🔐 Credentials saved securely.' : `❌ ${res.error}`);
     $('euPassword').value = '';
 });
 $('btnLoadCreds').addEventListener('click', async () => {
@@ -1100,42 +1099,42 @@ $('btnLoadCreds').addEventListener('click', async () => {
     if (res.ok && res.data) {
         $('euUsername').value = res.data.username;
         $('euPassword').value = '••••••••';
-        setAlert('credStatus', 'info', `📂 Credenziali caricate per: ${escHtml(res.data.username)}`);
+        setAlert('credStatus', 'info', `📂 Credentials loaded for: ${escHtml(res.data.username)}`);
     }
     else {
-        setAlert('credStatus', 'warning', '⚠️ Nessuna credenziale salvata.');
+        setAlert('credStatus', 'warning', '⚠️ No saved credentials found.');
     }
 });
 $('btnClearCreds').addEventListener('click', async () => {
     await window.euMatch.clearCredentials();
     $('euUsername').value = '';
     $('euPassword').value = '';
-    setAlert('credStatus', 'success', '🗑️ Credenziali eliminate.');
-    appLog('storage', 'Credenziali EU Login eliminate.');
+    setAlert('credStatus', 'success', '🗑️ Credentials deleted.');
+    appLog('storage', 'EU Login credentials removed.');
 });
 $('btnTestAuth').addEventListener('click', async () => {
     const btn = $('btnTestAuth');
     btn.disabled = true;
-    btn.textContent = '⏳ Test in corso…';
-    setAlert('credStatus', 'info', '🔌 Test connessione EU in corso…');
-    appLog('api', 'Test connessione EU avviato…');
+    btn.textContent = '⏳ Testing…';
+    setAlert('credStatus', 'info', '🔌 Testing EU connection…');
+    appLog('api', 'EU connectivity test started…');
     try {
         const conn = await window.euMatch.testEuConnectivity();
         appLog(conn.ok ? 'success' : 'error', `API EU pubblica: ${conn.message}`, `HTTP ${conn.status}`);
         const auth = await window.euMatch.testEuAuth();
         if (auth.ok) {
-            setAlert('credStatus', 'success', '✅ API EU raggiungibile. Credenziali EU Login valide.');
-            appLog('success', 'EU Login: credenziali verificate con successo.');
+            setAlert('credStatus', 'success', '✅ EU API reachable. Login credentials valid.');
+            appLog('success', 'EU Login credentials verified.');
         }
         else {
-            setAlert('credStatus', conn.ok ? 'warning' : 'error', `${conn.ok ? '✅ API EU raggiungibile.' : '❌ API EU non raggiungibile.'} ${auth.error}`);
+            setAlert('credStatus', conn.ok ? 'warning' : 'error', `${conn.ok ? '✅ EU API reachable.' : '❌ EU API unreachable.'} ${auth.error}`);
             appLog('warn', `EU Login: ${auth.error}`);
         }
         switchToTab('log');
     }
     finally {
         btn.disabled = false;
-        btn.textContent = '🔌 Verifica Connessione EU';
+        btn.textContent = '🔌 Test EU Connection';
     }
 });
 // ─── Copilot Model Modal ───────────────────────────────────────────────────────

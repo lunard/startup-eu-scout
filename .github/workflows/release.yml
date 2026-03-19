@@ -49,8 +49,6 @@ jobs:
             release/*.AppImage
             release/*.exe
             release/*.dmg
-            release/*.blockmap
-            release/latest*.yml
           if-no-files-found: warn
           retention-days: 1
 
@@ -105,5 +103,15 @@ jobs:
             --title "EU-Match ${{ github.ref_name }}" \
             --notes-file release_notes.md \
             artifacts/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove auto-attached source archives
+        run: |
+          TAG="${{ github.ref_name }}"
+          for asset in $(gh release view "$TAG" --json assets -q '.assets[].name' | grep -E '\.(zip|tar\.gz)$'); do
+            echo "Deleting $asset"
+            gh release delete-asset "$TAG" "$asset" --yes
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
