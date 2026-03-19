@@ -361,6 +361,28 @@ body {
 .acc-id:hover { text-decoration: underline; color: var(--eu-gold); }
 .acc-label { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.acc-item { border-bottom: 1px solid var(--border); }
+.acc-item[open] { background: rgba(0,51,153,0.04); border-radius: 6px; margin: 2px 0; }
+.acc-item summary { list-style: none; }
+.acc-item summary::-webkit-details-marker { display: none; }
+.acc-item .acc-row { cursor: pointer; }
+.acc-item .acc-row:hover .acc-label { color: var(--text); }
+.acc-detail {
+  padding: 6px 12px 10px 36px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.acc-detail-title { font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.acc-detail-meta { color: var(--text-muted); font-size: 11px; margin-bottom: 4px; }
+.acc-detail-desc { color: var(--text-muted); margin-bottom: 6px; }
+.acc-detail-link {
+  color: var(--eu-blue);
+  font-size: 11px;
+  text-decoration: none;
+}
+.acc-detail-link:hover { text-decoration: underline; }
+.acc-highlight { background: var(--eu-gold); color: #000; border-radius: 2px; padding: 0 2px; }
+
 /* ─── Opus Stream ────────────────────────────────────── */
 .opus-stream-card { margin-bottom: 16px; }
 .opus-stream-badge {

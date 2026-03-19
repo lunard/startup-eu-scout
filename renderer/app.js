@@ -400,44 +400,77 @@ function linkifyGrantIds(html) {
     });
 }
 // ─── Grant Accordion (pre-analysis list) ─────────────────────────────────────
+function highlightText(text, query) {
+    if (!query)
+        return escHtml(text);
+    const escaped = escHtml(text);
+    const qEsc = escHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escaped.replace(new RegExp(`(${qEsc})`, 'gi'), '<mark class="acc-highlight">$1</mark>');
+}
 function renderGrantAccordion(grants) {
-    const rows = grants.map((g, i) => {
-        const label = (g.title || g.description || '').substring(0, 100);
-        const url = g.portalUrl;
-        const searchText = `${g.id} ${g.title} ${g.description}`.toLowerCase();
-        return `<div class="acc-row" data-search="${escHtml(searchText)}">
-      <span class="acc-num">${i + 1}.</span>
-      <a class="acc-id" href="${escHtml(url)}" target="_blank" title="Open in EU Portal">${escHtml(g.id)}</a>
-      <span class="acc-label">${escHtml(label)}${(g.title || g.description || '').length > 100 ? '…' : ''}</span>
-    </div>`;
-    }).join('');
+    // Store grants data for re-rendering on filter
+    window.__accGrants = grants;
+    const buildRows = (q) => {
+        let visible = 0;
+        const html = grants.map((g, i) => {
+            const title = g.title || '';
+            const desc = g.description || '';
+            const searchText = `${g.id} ${title} ${desc}`.toLowerCase();
+            const match = !q || searchText.includes(q);
+            if (!match)
+                return '';
+            visible++;
+            const url = g.portalUrl;
+            const shortLabel = title.substring(0, 100) + (title.length > 100 ? '…' : '');
+            const dates = [
+                g.openDate ? `📂 Opens: ${g.openDate}` : '',
+                g.deadline ? `📅 Deadline: ${g.deadline}` : '',
+                g.budget ? `💰 ${g.budget}` : '',
+                g.programme ? `🏛️ ${g.programme}` : '',
+                g.typeOfAction ? `⚗️ ${g.typeOfAction}` : '',
+            ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+            return `<details class="acc-item">
+        <summary class="acc-row">
+          <span class="acc-num">${i + 1}.</span>
+          <a class="acc-id" href="${escHtml(url)}" target="_blank" title="Open in EU Portal">${highlightText(g.id, q)}</a>
+          <span class="acc-label">${highlightText(shortLabel, q)}</span>
+        </summary>
+        <div class="acc-detail">
+          <div class="acc-detail-title">${highlightText(title, q)}</div>
+          ${dates ? `<div class="acc-detail-meta">${dates}</div>` : ''}
+          ${desc ? `<div class="acc-detail-desc">${highlightText(desc, q)}</div>` : ''}
+          <a class="acc-detail-link" href="${escHtml(url)}" target="_blank">🔗 Open in EU Portal</a>
+        </div>
+      </details>`;
+        }).join('');
+        return { html, visible };
+    };
+    const { html: initialRows, visible: initialVisible } = buildRows('');
     $('grantResults').innerHTML = `
     <details class="grant-accordion" open>
       <summary class="acc-summary">📋 ${grants.length} grants entering Opus analysis</summary>
       <div class="acc-filter-wrap">
         <input type="text" class="acc-filter-input" id="accFilterInput" placeholder="🔍 Filter grants…" />
-        <span class="acc-filter-count" id="accFilterCount">${grants.length} / ${grants.length}</span>
+        <span class="acc-filter-count" id="accFilterCount">${initialVisible} / ${grants.length}</span>
       </div>
-      <div class="acc-body" id="accBody">${rows}</div>
+      <div class="acc-body" id="accBody">${initialRows}</div>
     </details>`;
-    // Filter on typing
+    // Filter on typing — rebuild rows with highlighting
     const input = $('accFilterInput');
     input.addEventListener('input', () => {
         const q = input.value.toLowerCase().trim();
-        const allRows = $('accBody').querySelectorAll('.acc-row');
-        let visible = 0;
-        allRows.forEach(row => {
-            const match = !q || (row.dataset.search ?? '').includes(q);
-            row.style.display = match ? '' : 'none';
-            if (match)
-                visible++;
-        });
+        const { html, visible } = buildRows(q);
+        $('accBody').innerHTML = html;
         $('accFilterCount').textContent = `${visible} / ${grants.length}`;
+        bindAccordionLinks();
     });
-    // Make links open in external browser
-    $('grantResults').querySelectorAll('.acc-id').forEach(a => {
+    bindAccordionLinks();
+}
+function bindAccordionLinks() {
+    $('grantResults').querySelectorAll('.acc-id, .acc-detail-link').forEach(a => {
         a.addEventListener('click', e => {
             e.preventDefault();
+            e.stopPropagation();
             window.open(a.href, '_blank');
         });
     });
