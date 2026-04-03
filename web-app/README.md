@@ -40,6 +40,64 @@ A **cutting-edge device** is required for on-device AI. The app will detect and 
 
 ---
 
+## 🤖 AI Model Management
+
+### Available models
+
+| Model | Size on disk | RAM during inference | Best for |
+|-------|-------------|---------------------|---------|
+| **Qwen 2.5 1.5B** *(mobile default)* | ~1.0 GB | ~1.5 GB peak | iPhone, iPad, Android |
+| Phi-3.5 Mini 3.8B *(desktop default)* | ~2.2 GB | ~3.0 GB peak | Desktop GPU, iPad Pro M4 |
+| Llama 3.2 3B | ~2.0 GB | ~2.8 GB peak | Desktop GPU |
+
+On iPhone/iPad the app automatically suggests **Qwen 2.5 1.5B** and shows a ⚠️ warning if a larger model is selected.
+
+### Where models are stored
+
+Model weights are fetched once by [WebLLM](https://webllm.mlc.ai/) and stored in the **browser's Cache API** (not IndexedDB). This is separate from app data:
+
+- On Chrome/Edge: `chrome://cache` — survives browser restarts, shared across tabs
+- On Safari: stored in origin-specific cache — survives app restarts when installed as PWA
+- Typical location: the browser's own disk cache, managed by the browser
+
+To clear model weights: **Settings → Safari/Chrome site data → Clear** or use the browser's developer tools to clear Cache Storage for `eu-scout.codethecat.dev`.
+
+### Memory lifecycle
+
+```
+User taps "Load model"
+  → WebLLM downloads weights (~1–2 GB) to Cache API (one-time, cached)
+  → WebGPU compiles shader programs (~5–30s depending on device)
+  → Model tensors uploaded to GPU VRAM / unified memory
+  → window.__euScoutEngine stored in JS heap (in-memory reference)
+
+During inference (Generate / Analyse)
+  → KV-cache allocated per request (tokens × layers × head-dim)
+  → Tokens streamed out one-by-one (stream:true) — frees memory earlier
+  → max_tokens capped: 900 for summaries, 350 per grant analysis
+
+When the page/tab is closed or killed by iOS
+  → JS heap (engine reference) is lost immediately
+  → GPU VRAM is released immediately
+  → Cache API weights remain on disk (fast re-init on next open)
+
+On next app open (if "Auto-restore on startup" is ON in Settings)
+  → WebLLM re-compiles shaders from cached weights (~5–10s, no download)
+  → Model is ready without any user action
+```
+
+### Why the app can crash on iPhone during generation
+
+iOS Safari enforces a **per-tab memory limit** (approximately 2–4 GB depending on device and iOS version). Running a 2.2 GB model with the KV-cache can exceed this on older devices. Symptoms: Safari silently kills the tab and restarts it.
+
+Mitigations already in place:
+- **Streaming output** (`stream: true`) — releases KV-cache memory incrementally
+- **Capped `max_tokens`** — limits peak allocation
+- **Mobile default model** — Qwen 2.5 1.5B stays comfortably under the limit
+- **Auto-restore** — if the tab is killed, re-opening the app restores the model from cache
+
+---
+
 ## 🚀 Run Locally
 
 ```bash

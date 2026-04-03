@@ -25,6 +25,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 50 * 1024 * 1024,
+        skipWaiting: true,      // activate new SW immediately, no tab-close required
+        clientsClaim: true,     // take control of all open clients immediately
       },
     }),
   ],

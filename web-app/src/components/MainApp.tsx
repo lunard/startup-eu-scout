@@ -20,13 +20,17 @@ export default function MainApp() {
   const errorCount = logs.filter(l => l.type === 'error').length
 
   return (
-    // h-full relies on html/body/#root height:100% + overflow:hidden chain.
-    // No position:fixed/absolute — iOS 26 Safari regresses those.
-    // min-h-0 on main is critical: without it flex children won't shrink below content height.
-    <div className="h-full flex flex-col bg-eu-navy">
+    // CSS Grid: header=auto, content=1fr (remaining), nav=auto
+    // 1fr gives the content area a DEFINITE computed height — no flex min-h-0 tricks needed.
+    // overflow:hidden on the grid container clips any accidental overflow.
+    <div className="bg-eu-navy overflow-hidden" style={{
+      height: '100%',
+      display: 'grid',
+      gridTemplateRows: 'auto 1fr auto',
+    }}>
 
-      {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-5 pb-3 bg-eu-navy/90 backdrop-blur-md border-b border-white/[0.06]"
+      {/* Header — auto row */}
+      <header className="flex items-center justify-between px-5 pb-3 bg-eu-navy/90 backdrop-blur-md border-b border-white/[0.06]"
         style={{ paddingTop: `max(env(safe-area-inset-top, 0px), 12px)` }}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-eu-blue to-eu-sky flex items-center justify-center text-sm">
@@ -40,22 +44,19 @@ export default function MainApp() {
         <LlmStatusBadge />
       </header>
 
-      {/* Scrollable tab content — flex-1 + min-h-0 constrains height, overflow-y-auto scrolls */}
-      <main className="flex-1 min-h-0 overflow-y-auto">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          transition={{ duration: 0.15 }}>
+      {/* Content — 1fr row, scrolls internally */}
+      <div style={{ overflowY: 'auto', overflowX: 'hidden' }}>
+        <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
           {activeTab === 'profile'  && <ProfileTab />}
           {activeTab === 'summary'  && <SummaryTab />}
           {activeTab === 'grants'   && <GrantsTab />}
           {activeTab === 'settings' && <SettingsTab />}
           {activeTab === 'log'      && <LogTab />}
         </motion.div>
-      </main>
+      </div>
 
-      {/* Bottom tab bar — shrink-0 keeps it always in view */}
-      <nav className="shrink-0 tab-bar bg-eu-navy/95 backdrop-blur-xl border-t border-white/[0.06]">
+      {/* Tab bar — auto row, always visible */}
+      <nav className="tab-bar bg-eu-navy/95 backdrop-blur-xl border-t border-white/[0.06]">
         <div className="flex">
           {TABS.map(tab => {
             const active = activeTab === tab.id
