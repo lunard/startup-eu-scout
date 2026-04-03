@@ -1,0 +1,244 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# EU Scout Web App — Deploy to Azure Container Apps
+#
+# Trigger : semver tag push (e.g. web/1.0.0) OR manual workflow_dispatch
+# Flow    : build → push image to ACR → deploy Bicep → bind custom domain + TLS
+#
+# Custom domain : eu-scout.codethecat.dev
+# Registry      : Azure Container Registry  (set REGISTRY secret)
+# Auth          : Service principal with AcrPush + Contributor on resource group
+#
+# ── Required GitHub Secrets ────────────────────────────────────────────────────
+#   AZURE_CLIENT_ID        Service principal appId  (AcrPush + Contributor on RG)
+#   AZURE_CLIENT_SECRET    Service principal password
+#   AZURE_TENANT_ID        Azure AD tenant ID
+#   AZURE_SUBSCRIPTION_ID  Azure subscription ID
+#   ACR_REGISTRY           ACR login server, e.g. myacr.azurecr.io
+#   RESOURCE_GROUP         Azure resource group name
+#   ACA_ENVIRONMENT        Container Apps environment name
+#
+# ── No secrets in the repo — everything flows through GitHub Secrets ───────────
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Deploy EU Scout Web
+
+concurrency:
+  group: deploy-eu-scout-web
+  cancel-in-progress: true
+
+on:
+  push:
+    tags:
+      - 'web/[0-9]+.[0-9]+.[0-9]+'   # e.g. web/1.0.0
+  workflow_dispatch:
+    inputs:
+      force_domain_rebind:
+        description: 'Force re-binding custom domain even if already configured'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  APP_DIR:   web-app
+  IMAGE_NAME: eu-scout-web
+  CUSTOM_DOMAIN: eu-scout.codethecat.dev
+  LOCATION: westeurope
+
+permissions:
+  contents: read
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 1 — build
+  # Builds the Docker image (multi-stage: node build → nginx serve) and pushes
+  # two tags to ACR: the short Git SHA (immutable, traceable) and "latest".
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.AZURE_CLIENT_ID }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.APP_DIR }}
+          file:    ${{ env.APP_DIR }}/Dockerfile
+          push:    true
+          tags:    ${{ steps.meta.outputs.tags }}
+          labels:  ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 2 — deploy
+  # Deploys / updates Azure resources via Bicep (idempotent).
+  # After Bicep, binds eu-scout.codethecat.dev with Azure-managed TLS cert
+  # using CNAME validation. If the CNAME already resolves correctly, the step
+  # is idempotent and safe to re-run.
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      fqdn: ${{ steps.bicep.outputs.fqdn }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        run: |
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --password "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --tenant   "${{ secrets.AZURE_TENANT_ID }}"
+
+      - name: Set subscription
+        run: az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Ensure resource group exists
+        run: |
+          az group create \
+            --name     "${{ secrets.RESOURCE_GROUP }}" \
+            --location "${{ env.LOCATION }}" \
+            --output   none
+
+      - name: Cancel any active deployment (avoid DeploymentActive conflict)
+        run: |
+          az deployment group cancel \
+            --resource-group "${{ secrets.RESOURCE_GROUP }}" \
+            --name main 2>/dev/null || true
+
+      - name: Deploy Bicep
+        id: bicep
+        run: |
+          IMAGE="${{ secrets.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}"
+
+          az deployment group create \
+            --resource-group   "${{ secrets.RESOURCE_GROUP }}" \
+            --template-file    "${{ env.APP_DIR }}/infra/main.bicep" \
+            --name             main \
+            --parameters \
+              environmentName="${{ secrets.ACA_ENVIRONMENT }}" \
+              location="${{ env.LOCATION }}" \
+              image="$IMAGE" \
+              acrRegistry="${{ secrets.ACR_REGISTRY }}" \
+              acrUsername="${{ secrets.AZURE_CLIENT_ID }}" \
+              acrPassword="${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --output none
+
+          FQDN=$(az deployment group show \
+            --resource-group "${{ secrets.RESOURCE_GROUP }}" \
+            --name main \
+            --query "properties.outputs.fqdn.value" \
+            --output tsv)
+
+          echo "fqdn=${FQDN}" >> "$GITHUB_OUTPUT"
+
+      - name: Print default URL
+        run: |
+          echo "────────────────────────────────────────────"
+          echo "  ACA default URL : https://${{ steps.bicep.outputs.fqdn }}"
+          echo "  Custom domain   : https://${{ env.CUSTOM_DOMAIN }}"
+          echo "────────────────────────────────────────────"
+          echo ""
+          echo "⚠️  If the CNAME for ${{ env.CUSTOM_DOMAIN }} is not yet set,"
+          echo "   create it now pointing to: ${{ steps.bicep.outputs.fqdn }}"
+          echo "   Then re-run this workflow (or it will auto-retry on next deploy)."
+
+      # ── Custom domain + Azure-managed TLS cert ───────────────────────────────
+      # The step checks if the domain is already bound with SniEnabled (cert active).
+      # If not, it attempts to add the hostname and bind the managed cert.
+      # ACA validates ownership via CNAME (eu-scout.codethecat.dev → ACA FQDN).
+      # Certificate provisioning may take up to 5 minutes after CNAME propagates.
+      - name: Bind custom domain with Azure-managed TLS
+        run: |
+          APP_NAME="eu-scout-web"
+          HOSTNAME="${{ env.CUSTOM_DOMAIN }}"
+          RG="${{ secrets.RESOURCE_GROUP }}"
+          ENV="${{ secrets.ACA_ENVIRONMENT }}"
+          FORCE="${{ github.event.inputs.force_domain_rebind || 'false' }}"
+
+          BINDING=$(az containerapp show \
+            --resource-group "$RG" \
+            --name "$APP_NAME" \
+            --query "properties.configuration.ingress.customDomains[?name=='${HOSTNAME}'].bindingType" \
+            --output tsv 2>/dev/null || echo "")
+
+          if [ "$BINDING" = "SniEnabled" ] && [ "$FORCE" != "true" ]; then
+            echo "✅ Custom domain ${HOSTNAME} already configured with TLS — skipping"
+            exit 0
+          fi
+
+          # Add hostname if not present
+          if [ -z "$BINDING" ]; then
+            echo "➕ Adding hostname ${HOSTNAME} to ${APP_NAME}..."
+            az containerapp hostname add \
+              --resource-group "$RG" \
+              --name "$APP_NAME" \
+              --hostname "$HOSTNAME"
+          else
+            echo "🔄 Re-binding certificate for ${HOSTNAME} (current: ${BINDING})..."
+          fi
+
+          # Bind Azure-managed certificate (requires CNAME to already resolve)
+          az containerapp hostname bind \
+            --resource-group "$RG" \
+            --name           "$APP_NAME" \
+            --hostname       "$HOSTNAME" \
+            --environment    "$ENV" \
+            --validation-method CNAME \
+          && echo "✅ Certificate bound for ${HOSTNAME}" \
+          || echo "⏳ Certificate provisioning — will activate automatically once CNAME propagates"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 3 — summary
+  # Posts a deployment summary to the Actions run log.
+  # ────────────────────────────────────────────────────────────────────────────
+  summary:
+    name: Deployment summary
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: always()
+    steps:
+      - name: Write summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ## 🇪🇺 EU Scout Web — Deployment Summary
+
+          | | |
+          |---|---|
+          | **Image tag** | \`${{ needs.build.outputs.image_tag }}\` |
+          | **ACA default URL** | https://${{ needs.deploy.outputs.fqdn }} |
+          | **Custom domain** | https://eu-scout.codethecat.dev |
+          | **Status** | ${{ needs.deploy.result == 'success' && '✅ Deployed' || '❌ Failed' }} |
+
+          ### DNS reminder
+          If the custom domain certificate is not yet active, ensure your DNS has:
+          \`\`\`
+          eu-scout.codethecat.dev.  CNAME  ${{ needs.deploy.outputs.fqdn }}.
+          \`\`\`
+          EOF
