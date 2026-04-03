@@ -4,9 +4,11 @@ import { Key, Brain, BrainCircuit, CheckCircle2, XCircle, Loader2, Eye, EyeOff, 
 import { useAppStore } from '@/store/appStore'
 import { saveCredential, loadCredential, deleteCredential } from '@/lib/storage'
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
 const MODELS = [
-  { id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',  label: 'Phi-3.5 Mini (3.8B)', size: '~2.2 GB', rec: true },
-  { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',  label: 'Qwen 2.5 1.5B',       size: '~1.0 GB' },
+  { id: 'Phi-3.5-mini-instruct-q4f16_1-MLC',  label: 'Phi-3.5 Mini (3.8B)', size: '~2.2 GB', rec: !isMobile },
+  { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',  label: 'Qwen 2.5 1.5B',       size: '~1.0 GB', rec: isMobile, note: isMobile ? 'Best for mobile' : undefined },
   { id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',  label: 'Llama 3.2 3B',        size: '~2.0 GB' },
 ]
 
@@ -17,7 +19,10 @@ export default function SettingsTab() {
   const [showKey, setShowKey] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
   const [keySaved, setKeySaved] = useState(false)
-  const [selectedModel, setSelectedModel] = useState(settings.defaultModel)
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (settings.defaultModel) return settings.defaultModel
+    return isMobile ? 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC' : 'Phi-3.5-mini-instruct-q4f16_1-MLC'
+  })
   const [modelOpen, setModelOpen] = useState(false)
 
   async function saveClaudeKey() {
@@ -119,7 +124,10 @@ export default function SettingsTab() {
                     ${selectedModel === m.id ? 'bg-eu-blue/10' : ''}`}
                   onClick={() => { setSelectedModel(m.id); setModelOpen(false) }}>
                   <div>
-                    <p className="text-sm text-white">{m.label}{m.rec && <span className="ml-2 text-[10px] text-eu-gold">Recommended</span>}</p>
+                    <p className="text-sm text-white">{m.label}
+                      {m.rec && <span className="ml-2 text-[10px] text-eu-gold">Recommended</span>}
+                      {m.note && !m.rec && <span className="ml-2 text-[10px] text-eu-sky">{m.note}</span>}
+                    </p>
                     <p className="text-xs text-eu-muted">{m.size}</p>
                   </div>
                   {selectedModel === m.id && <CheckCircle2 size={15} className="text-eu-sky" />}
@@ -140,6 +148,12 @@ export default function SettingsTab() {
               <motion.div className="h-full bg-gradient-to-r from-eu-blue to-eu-sky rounded-full"
                 animate={{ width: `${llmProgress}%` }} transition={{ duration: 0.3 }} />
             </div>
+          </div>
+        )}
+
+        {isMobile && selectedModel !== 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC' && !llmReady && (
+          <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+            <p className="text-xs text-yellow-400">⚠️ Large model on mobile — may crash. <button className="underline" onClick={() => setSelectedModel('Qwen2.5-1.5B-Instruct-q4f16_1-MLC')}>Switch to 1.5B</button></p>
           </div>
         )}
 

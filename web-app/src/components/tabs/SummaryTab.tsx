@@ -40,13 +40,20 @@ export default function SummaryTab() {
       const engine = await (window as any).__euScoutEngine
       if (!engine) throw new Error('LLM engine not initialized. Load it from Settings first.')
       const prompt = EU_SUMMARY_PROMPT(profile)
-      const reply = await engine.chat.completions.create({
+      const stream = await engine.chat.completions.create({
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
-        max_tokens: 1500,
-        stream: false,
+        max_tokens: 900,
+        stream: true as const,
       })
-      const summary = reply.choices[0].message.content ?? ''
+      let summary = ''
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content ?? ''
+        if (delta) {
+          summary += delta
+          setProfile({ ...profile, schedaEU: summary })
+        }
+      }
       const keywords = extractKeywords(summary)
       const updated = { ...profile, schedaEU: summary, keywords }
       await saveProfile(updated)

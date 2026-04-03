@@ -108,11 +108,14 @@ Respond in Markdown:
 
 Be concise and specific.`
 
-        const reply = await engine.chat.completions.create({
+        const stream = await engine.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.2, max_tokens: 500, stream: false,
+          temperature: 0.2, max_tokens: 350, stream: true as const,
         })
-        const analysis = reply.choices[0].message.content ?? ''
+        let analysis = ''
+        for await (const chunk of stream) {
+          analysis += chunk.choices[0]?.delta?.content ?? ''
+        }
         const fitScore = parseInt(analysis.match(/Fit Score:\s*(\d+)/)?.[1] ?? '0')
 
         await saveAnalysis({ grantId: g.id, profileId: profile!.id, analysis, fitScore, savedAt: new Date().toISOString() })
