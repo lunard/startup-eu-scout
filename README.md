@@ -2,12 +2,17 @@
 
 **Find the EU grants that actually fit your startup — in minutes, not weeks.**
 
+[![Deploy EU Scout Web](https://github.com/lunard/startup-eu-scout/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/lunard/startup-eu-scout/actions/workflows/deploy-web.yml)
+[![Web App](https://img.shields.io/badge/web-eu--scout.codethecat.dev-blue?logo=azure-devops)](https://eu-scout.codethecat.dev)
+[![Web version](https://img.shields.io/badge/web--app-v0.2.0-brightgreen)](#)
+[![Electron version](https://img.shields.io/badge/electron--app-v0.10.0-blue)](#)
+
 This monorepo contains two apps sharing the same goal:
 
-| App | Path | Platform | AI Backend |
-|-----|------|----------|-----------|
-| **EU-Match** (desktop) | [`electron-app/`](./electron-app/) | Windows · macOS · Linux | Claude Opus via GitHub Copilot CLI |
-| **EU Scout** (web/mobile) | [`web-app/`](./web-app/) | iPhone · iPad · Android · any browser | Local LLM on NPU/GPU (WebLLM) or Claude API |
+| App | Path | Version | Platform | AI Backend |
+|-----|------|---------|----------|-----------|
+| **EU-Match** (desktop) | [`electron-app/`](./electron-app/) | v0.10.0 | Windows · macOS · Linux | Claude Opus via GitHub Copilot CLI |
+| **EU Scout** (web/mobile) | [`web-app/`](./web-app/) | v0.2.0 | iPhone · iPad · Android · any browser | Local LLM on NPU/GPU (WebLLM) or Claude API |
 
 ---
 
@@ -54,16 +59,28 @@ On iPhone 16, the **Apple Neural Engine is not yet accessible** from web browser
 
 ```bash
 cd web-app
-cd electron-app && npm install
+npm install
 npm run dev        # Dev server at http://localhost:5173
 npm run build      # Production build → dist/
 npm run preview    # Preview production build
 ```
 
-### Web App Architecture
+**Live:** [https://eu-scout.codethecat.dev](https://eu-scout.codethecat.dev)
+**Changelog:** [web-app/CHANGELOG.md](./web-app/CHANGELOG.md)
 
+### Deploying
+
+Push a semver tag to trigger the GitHub Actions pipeline:
+
+```bash
+git tag web/x.y.z
+git push origin web/x.y.z
 ```
-web-app/
+
+The pipeline builds the Docker image, pushes to ACR, deploys via Bicep to Azure Container Apps, and binds the custom domain with a managed TLS certificate.
+See [`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml) and [`web-app/infra/main.bicep`](web-app/infra/main.bicep).
+
+### Web App Architecture
 ├── src/
 │   ├── components/
 │   │   ├── screens/
