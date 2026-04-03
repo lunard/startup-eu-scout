@@ -70,21 +70,21 @@ function AppRouter() {
   return (
     <AnimatePresence mode="wait">
       {screen === 'device-check' && (
-        <motion.div key="device-check" className="contents"
+        <motion.div key="device-check" className="h-full"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}>
           <DeviceCheckScreen />
         </motion.div>
       )}
       {screen === 'disclaimer' && (
-        <motion.div key="disclaimer" className="contents"
+        <motion.div key="disclaimer" className="h-full"
           initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
           <DisclaimerScreen />
         </motion.div>
       )}
       {screen === 'app' && (
-        <motion.div key="app" className="contents"
+        <motion.div key="app" className="h-full"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}>
           <MainApp />

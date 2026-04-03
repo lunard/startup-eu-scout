@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Building2, Globe, LayoutList, Settings2, ScrollText } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import ProfileTab from './tabs/ProfileTab'
@@ -20,11 +20,13 @@ export default function MainApp() {
   const errorCount = logs.filter(l => l.type === 'error').length
 
   return (
-    <div className="flex flex-col bg-eu-navy overflow-hidden"
-      style={{ height: 'var(--app-height, 100dvh)' }}>
+    // h-full relies on html/body/#root height:100% + overflow:hidden chain.
+    // No position:fixed/absolute — iOS 26 Safari regresses those.
+    // min-h-0 on main is critical: without it flex children won't shrink below content height.
+    <div className="h-full flex flex-col bg-eu-navy">
 
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-5 pt-safe-top pb-3 bg-eu-navy/90 backdrop-blur-md border-b border-white/[0.06] z-10"
+      <header className="shrink-0 flex items-center justify-between px-5 pb-3 bg-eu-navy/90 backdrop-blur-md border-b border-white/[0.06]"
         style={{ paddingTop: `max(env(safe-area-inset-top, 0px), 12px)` }}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-eu-blue to-eu-sky flex items-center justify-center text-sm">
@@ -38,23 +40,22 @@ export default function MainApp() {
         <LlmStatusBadge />
       </header>
 
-      {/* Tab content */}
-      <main className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          <motion.div key={activeTab} className="absolute inset-0 overflow-y-auto"
-            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-            {activeTab === 'profile'  && <ProfileTab />}
-            {activeTab === 'summary'  && <SummaryTab />}
-            {activeTab === 'grants'   && <GrantsTab />}
-            {activeTab === 'settings' && <SettingsTab />}
-            {activeTab === 'log'      && <LogTab />}
-          </motion.div>
-        </AnimatePresence>
+      {/* Scrollable tab content — flex-1 + min-h-0 constrains height, overflow-y-auto scrolls */}
+      <main className="flex-1 min-h-0 overflow-y-auto">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}>
+          {activeTab === 'profile'  && <ProfileTab />}
+          {activeTab === 'summary'  && <SummaryTab />}
+          {activeTab === 'grants'   && <GrantsTab />}
+          {activeTab === 'settings' && <SettingsTab />}
+          {activeTab === 'log'      && <LogTab />}
+        </motion.div>
       </main>
 
-      {/* Bottom tab bar */}
-      <nav className="shrink-0 tab-bar bg-eu-navy/95 backdrop-blur-xl border-t border-white/[0.06] z-10">
+      {/* Bottom tab bar — shrink-0 keeps it always in view */}
+      <nav className="shrink-0 tab-bar bg-eu-navy/95 backdrop-blur-xl border-t border-white/[0.06]">
         <div className="flex">
           {TABS.map(tab => {
             const active = activeTab === tab.id
