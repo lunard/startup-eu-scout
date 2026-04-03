@@ -49,6 +49,7 @@ export interface AppSettings {
   openCorporatesKey?: string
   useLlm: 'local' | 'claude' | 'none'
   defaultModel: string
+  autoLoadModel: boolean   // re-init engine from cache on every startup
 }
 
 // ─── Device Capability Types ─────────────────────────────────────────────────

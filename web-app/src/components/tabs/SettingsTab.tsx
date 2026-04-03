@@ -51,7 +51,8 @@ export default function SettingsTab() {
       });
       (window as any).__euScoutEngine = engine
       setLlmStatus(true, false, 100, 'Ready')
-      updateSettings({ useLlm: 'local', defaultModel: selectedModel })
+      // Enable auto-restore on next startup
+      updateSettings({ useLlm: 'local', defaultModel: selectedModel, autoLoadModel: true })
       addLog('success', `${selectedModel} loaded — ${capabilities?.npuAvailable ? 'NPU' : 'GPU'} backend active`)
     } catch (e) {
       setLlmStatus(false, false, 0, '')
@@ -151,6 +152,23 @@ export default function SettingsTab() {
         <p className="text-xs text-eu-muted mt-2 text-center leading-relaxed">
           Downloaded once and cached offline. Model runs locally — never leaves your device.
         </p>
+
+        {/* Auto-restore toggle — shown only after first successful load */}
+        {settings.autoLoadModel !== undefined && settings.defaultModel && (
+          <button
+            className="mt-3 w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] active:opacity-70"
+            onClick={() => updateSettings({ autoLoadModel: !settings.autoLoadModel })}>
+            <div className="text-left">
+              <p className="text-xs font-medium text-white">Auto-restore on startup</p>
+              <p className="text-[10px] text-eu-muted mt-0.5">Reload model from cache when app opens</p>
+            </div>
+            <div className={`w-9 h-5 rounded-full transition-colors duration-200 flex items-center px-0.5 shrink-0 ml-3
+              ${settings.autoLoadModel ? 'bg-eu-sky' : 'bg-white/20'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform duration-200
+                ${settings.autoLoadModel ? 'translate-x-4' : 'translate-x-0'}`} />
+            </div>
+          </button>
+        )}
       </motion.div>
 
       {/* Claude API key */}

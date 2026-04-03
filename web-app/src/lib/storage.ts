@@ -135,9 +135,9 @@ const SETTINGS_KEY = 'eu-scout-settings'
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    return raw ? JSON.parse(raw) : { useLlm: 'local', defaultModel: 'Phi-3.5-mini-instruct-q4f16_1-MLC' }
+    return raw ? JSON.parse(raw) : { useLlm: 'local', defaultModel: 'Phi-3.5-mini-instruct-q4f16_1-MLC', autoLoadModel: false }
   } catch {
-    return { useLlm: 'local', defaultModel: 'Phi-3.5-mini-instruct-q4f16_1-MLC' }
+    return { useLlm: 'local', defaultModel: 'Phi-3.5-mini-instruct-q4f16_1-MLC', autoLoadModel: false }
   }
 }
 

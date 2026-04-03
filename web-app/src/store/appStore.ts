@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { AppScreen, DeviceCapabilities, LogEntry, StartupProfile, GrantResult, AppSettings } from '@/types'
-import { loadSettings, saveSettings } from '@/lib/storage'
+import { loadSettings, saveSettings, hasAcceptedDisclaimer } from '@/lib/storage'
 
 // ─── App Store ────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,8 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  screen: 'device-check',
+  // Start at 'app' immediately if user already accepted disclaimer — no flash through device-check screens
+  screen: hasAcceptedDisclaimer() ? 'app' : 'device-check',
   activeTab: 'profile',
   setScreen: (screen) => set({ screen }),
   setActiveTab: (activeTab) => set({ activeTab }),
