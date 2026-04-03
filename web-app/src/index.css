@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Custom CSS variables ─────────────────────────────────────────────────── */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+* { -webkit-tap-highlight-color: transparent; }
+
+html, body, #root {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background: #0A1628;
+  color: white;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+/* ─── Glass cards ──────────────────────────────────────────────────────────── */
+@layer components {
+  .glass {
+    @apply bg-white/[0.06] backdrop-blur-md border border-white/[0.10] rounded-2xl;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  .glass-strong {
+    @apply bg-white/[0.10] backdrop-blur-xl border border-white/[0.15] rounded-2xl;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-md border border-white/[0.07] rounded-2xl;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-eu-navy
+           bg-gradient-to-br from-eu-gold to-yellow-500 shadow-glow-gold
+           active:scale-95 transition-all duration-150 select-none;
+  }
+
+  .btn-secondary {
+    @apply flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-white
+           bg-white/10 border border-white/20 backdrop-blur-sm
+           active:scale-95 transition-all duration-150 select-none;
+  }
+
+  .btn-ghost {
+    @apply flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-eu-muted
+           active:bg-white/5 transition-all duration-150 select-none;
+  }
+
+  .btn-danger {
+    @apply flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-white
+           bg-red-500/20 border border-red-500/30 backdrop-blur-sm
+           active:scale-95 transition-all duration-150 select-none;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full bg-white/[0.06] border border-white/[0.12] rounded-xl px-4 py-3
+           text-white placeholder-white/30 outline-none text-sm
+           focus:border-eu-sky/50 focus:ring-2 focus:ring-eu-sky/20
+           transition-all duration-200;
+  }
+
+  .input-label {
+    @apply block text-xs font-medium text-eu-muted mb-1.5 uppercase tracking-wide;
+  }
+
+  /* Badges */
+  .badge-open       { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-400 border border-green-500/20; }
+  .badge-forthcoming{ @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/20; }
+  .badge-closed     { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/20; }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply rounded-xl bg-white/[0.05];
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s linear infinite;
+  }
+
+  /* Score circle */
+  .score-high { @apply text-green-400; }
+  .score-mid  { @apply text-yellow-400; }
+  .score-low  { @apply text-red-400; }
+}
+
+/* ─── EU gradient backgrounds ──────────────────────────────────────────────── */
+.bg-eu-gradient {
+  background: radial-gradient(ellipse at 20% 20%, rgba(0,51,153,0.3) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 80%, rgba(30,144,255,0.15) 0%, transparent 60%),
+              #0A1628;
+}
+
+.bg-npu-gradient {
+  background: radial-gradient(ellipse at 30% 30%, rgba(255,215,0,0.12) 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 70%, rgba(0,51,153,0.25) 0%, transparent 50%),
+              #0A1628;
+}
+
+/* ─── Tab bar safe area ─────────────────────────────────────────────────────── */
+.tab-bar {
+  padding-bottom: max(var(--safe-bottom), 8px);
+}
+
+/* ─── Markdown rendered content ─────────────────────────────────────────────── */
+.prose-eu h1, .prose-eu h2, .prose-eu h3 { @apply text-white font-semibold; }
+.prose-eu h2 { @apply text-base mt-4 mb-2; }
+.prose-eu h3 { @apply text-sm mt-3 mb-1 text-eu-sky; }
+.prose-eu p  { @apply text-sm text-white/80 leading-relaxed mb-2; }
+.prose-eu ul { @apply list-disc list-inside text-sm text-white/80 space-y-1 mb-2; }
+.prose-eu strong { @apply text-eu-gold font-medium; }
+.prose-eu code { @apply text-xs bg-white/10 px-1.5 py-0.5 rounded font-mono; }
