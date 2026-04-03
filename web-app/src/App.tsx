@@ -7,6 +7,7 @@ import DisclaimerScreen from '@/components/screens/DisclaimerScreen'
 import MainApp from '@/components/MainApp'
 import { hasAcceptedDisclaimer, requestPersistentStorage } from '@/lib/storage'
 import { detectDeviceCapabilities } from '@/lib/device-detect'
+import { useViewportHeight } from '@/lib/useViewportHeight'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } },
@@ -15,6 +16,8 @@ const queryClient = new QueryClient({
 function AppRouter() {
   const { screen, setScreen, setCapabilities, setLlmStatus, settings, updateSettings, addLog } = useAppStore()
   const autoInitDone = useRef(false)
+
+  useViewportHeight()
 
   useEffect(() => {
     requestPersistentStorage()

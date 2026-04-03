@@ -20,7 +20,8 @@ export default function MainApp() {
   const errorCount = logs.filter(l => l.type === 'error').length
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-eu-navy overflow-hidden">
+    <div className="flex flex-col bg-eu-navy overflow-hidden"
+      style={{ height: 'var(--app-height, 100dvh)' }}>
 
       {/* Header */}
       <header className="shrink-0 flex items-center justify-between px-5 pt-safe-top pb-3 bg-eu-navy/90 backdrop-blur-md border-b border-white/[0.06] z-10"

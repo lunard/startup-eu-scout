@@ -18,7 +18,8 @@ export default function DisclaimerScreen() {
   const gpuName = capabilities?.gpuName ?? 'your GPU'
 
   return (
-    <div className="h-[100dvh] bg-eu-gradient flex flex-col overflow-hidden">
+    <div className="bg-eu-gradient flex flex-col overflow-hidden"
+      style={{ height: 'var(--app-height, 100dvh)' }}>
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 py-8 max-w-md mx-auto w-full flex flex-col gap-5">
 
