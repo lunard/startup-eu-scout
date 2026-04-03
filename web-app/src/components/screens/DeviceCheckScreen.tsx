@@ -74,7 +74,7 @@ export default function DeviceCheckScreen() {
   useEffect(() => { runChecks() }, [])
 
   return (
-    <div className="min-h-screen bg-eu-gradient flex flex-col items-center justify-center px-5 py-12">
+    <div className="h-[100dvh] bg-eu-gradient flex flex-col items-center justify-center px-5 py-12 overflow-y-auto">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center mb-10">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-eu-blue to-eu-sky flex items-center justify-center text-3xl mb-3 shadow-glow-blue">

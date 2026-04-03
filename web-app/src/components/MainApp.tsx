@@ -20,7 +20,7 @@ export default function MainApp() {
   const errorCount = logs.filter(l => l.type === 'error').length
 
   return (
-    <div className="h-screen flex flex-col bg-eu-navy overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-eu-navy overflow-hidden">
 
       {/* Header */}
       <header className="shrink-0 flex items-center justify-between px-5 pt-safe-top pb-3 bg-eu-navy/90 backdrop-blur-md border-b border-white/[0.06] z-10"

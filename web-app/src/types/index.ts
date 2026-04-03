@@ -69,7 +69,7 @@ export interface DeviceCapabilities {
 
 // ─── App State ────────────────────────────────────────────────────────────────
 
-export type AppScreen = 'device-check' | 'disclaimer' | 'capability' | 'app'
+export type AppScreen = 'device-check' | 'disclaimer' | 'app'
 
 export interface LogEntry {
   id: string
